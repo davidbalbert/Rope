@@ -20,6 +20,26 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(7, rope.count)
     }
 
+    func testConcatEmptyLeft() {
+        let left = Rope("")
+        let right = Rope("Hello, world!")
+        let rope = left + right
+        XCTAssertEqual("Hello, world!", rope.description)
+        XCTAssertEqual(13, rope.count)
+        XCTAssertEqual(0, rope.root.height)
+        XCTAssertIdentical(right.root, rope.root)
+    }
+
+    func testConcatEmptyRight() {
+        let left = Rope("Hello, world!")
+        let right = Rope("")
+        let rope = left + right
+        XCTAssertEqual("Hello, world!", rope.description)
+        XCTAssertEqual(13, rope.count)
+        XCTAssertEqual(0, rope.root.height)
+        XCTAssertIdentical(left.root, rope.root)
+    }
+
     func testSplit() {
         let rope = Rope("Hello, world!")
         let (left, right) = rope.split(at: 7)
@@ -104,5 +124,27 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual("Hello", slice.description)
         XCTAssertEqual(5, slice.count)
         XCTAssertNotIdentical(left.root, slice.root)
+    }
+
+    func testInsertCharacter() {
+        var rope = Rope("abcefg")
+        rope.insert("d", at: 3)
+        XCTAssertEqual("abcdefg", rope.description)
+        XCTAssertEqual(7, rope.count)
+    }
+
+    func testInsertString() {
+        var rope = Rope("123789")
+        rope.insert(contentsOf: "456", at: 3)
+        XCTAssertEqual("123456789", rope.description)
+        XCTAssertEqual(9, rope.count)
+    }
+
+    func testInsertCharacterIntoEmpty() {
+        var rope = Rope("")
+        rope.insert("a", at: 0)
+        XCTAssertEqual("a", rope.description)
+        XCTAssertEqual(1, rope.count)
+        XCTAssertEqual(0, rope.root.height)
     }
 }

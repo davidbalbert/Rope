@@ -8,6 +8,10 @@ class Node {
     var count: Int
     var val: Value
 
+    static func + (lhs: Node, rhs: Node) -> Node {
+        lhs.concat(rhs)
+    }
+
     init(height: Int, count: Int, val: Value) {
         self.height = height
         self.count = count
@@ -22,8 +26,18 @@ class Node {
         self.init(height: 0, count: string.count, val: .leaf(String(string)))
     }
 
+    convenience init(_ character: Character) {
+        self.init(String(character))
+    }
+
     func concat(_ other: Node) -> Node {
-        Node(height: max(height, other.height) + 1, count: count + other.count, val: .concat(self, other))
+        if count == 0 {
+            return other
+        } else if other.count == 0 {
+            return self
+        } else {
+            return Node(height: max(height, other.height) + 1, count: count + other.count, val: .concat(self, other))
+        }
     }
 
     subscript(index: Int) -> Character {
@@ -122,6 +136,16 @@ public struct Rope {
         let (_, n) = root.split(at: range.lowerBound)
         let (res, _) = n.split(at: range.upperBound - range.lowerBound)
         return Rope(res)
+    }
+
+    mutating func insert(_ newElement: Character, at i: Int) {
+        let (n1, n2) = root.split(at: i)
+        root = n1 + Node(newElement) + n2
+    }
+
+    mutating func insert<S>(contentsOf newElements: S, at i: Int) where S : Collection, S.Element == Character {
+        let (n1, n2) = root.split(at: i)
+        root = n1 + Node(String(newElements)) + n2
     }
 }
 
