@@ -171,12 +171,12 @@ extension Node: Sequence {
                 node = n
 
                 // go down the left side of that node
-                while true {
+                done: while true {
                     switch node.val {
                     case .leaf(let string):
                         leaf = string
                         offset = string.startIndex
-                        break
+                        break done
                     case .concat(let left, _):
                         stack.append((node, 1))
                         node = left
@@ -194,17 +194,6 @@ extension Node: Sequence {
 
     func makeIterator() -> Iterator {
         Iterator(self)
-    }
-}
-
-extension Node: CustomStringConvertible {
-    var description: String {
-        switch val {
-        case .leaf(let string):
-            return string
-        case .concat(let left, let right):
-            return left.description + right.description
-        }
     }
 }
 
@@ -279,6 +268,6 @@ extension Rope: Sequence {
 
 extension Rope: CustomStringConvertible {
     public var description: String {
-        root.description
+        String(self)
     }
 }
