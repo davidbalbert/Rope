@@ -147,6 +147,18 @@ public struct Rope {
         let (n1, n2) = root.split(at: i)
         root = n1 + Node(String(newElements)) + n2
     }
+
+    mutating func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C : Collection, C.Element == Character {
+        let (n1, n2) = root.split(at: subrange.lowerBound)
+        let (_, n3) = n2.split(at: subrange.upperBound - subrange.lowerBound)
+        root = n1 + Node(String(newElements)) + n3
+    }
+
+    mutating func removeSubrange(_ subrange: Range<Int>) {
+        let (n1, _) = root.split(at: subrange.lowerBound)
+        let (_, n2) = root.split(at: subrange.upperBound)
+        root = n1 + n2
+    }
 }
 
 extension Rope: CustomStringConvertible {

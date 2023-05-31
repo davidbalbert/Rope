@@ -40,6 +40,13 @@ final class RopeTests: XCTestCase {
         XCTAssertIdentical(left.root, rope.root)
     }
 
+    func testConcatEmptyMiddle() {
+        let rope = Rope("Hello, ") + Rope("") + Rope("world!")
+        XCTAssertEqual("Hello, world!", rope.description)
+        XCTAssertEqual(13, rope.count)
+        XCTAssertEqual(1, rope.root.height)
+    }
+
     func testSplit() {
         let rope = Rope("Hello, world!")
         let (left, right) = rope.split(at: 7)
@@ -146,5 +153,26 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual("a", rope.description)
         XCTAssertEqual(1, rope.count)
         XCTAssertEqual(0, rope.root.height)
+    }
+
+    func testReplaceSubrange() {
+        var rope = Rope("Hello, Earth!")
+        rope.replaceSubrange(7..<12, with: "Moon")
+        XCTAssertEqual("Hello, Moon!", rope.description)
+        XCTAssertEqual(12, rope.count)
+    }
+
+    func testReplaceSubrangeWithEmpty() {
+        var rope = Rope("Hello, world!")
+        rope.replaceSubrange(5..<12, with: "")
+        XCTAssertEqual("Hello!", rope.description)
+        XCTAssertEqual(6, rope.count)
+    }
+
+    func testRemoveSubrange() {
+        var rope = Rope("Hello, world!")
+        rope.removeSubrange(5..<12)
+        XCTAssertEqual("Hello!", rope.description)
+        XCTAssertEqual(6, rope.count)
     }
 }
