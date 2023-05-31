@@ -36,7 +36,7 @@ class Node {
         } else if other.count == 0 {
             return self
         } else {
-            return Node(height: max(height, other.height) + 1, count: count + other.count, val: .concat(self, other))
+            return Node(height: Swift.max(height, other.height) + 1, count: count + other.count, val: .concat(self, other))
         }
     }
 
@@ -84,6 +84,116 @@ class Node {
                     return (left.concat(r1), r2)
                 }
         }
+    }
+}
+
+extension Node: Sequence {
+    typealias Element = Character
+
+    struct Iterator: IteratorProtocol {
+        var root: Node
+        var position: Int
+        var stack: [(Node, Int)] // (node, childNumber)
+
+        var _leaf: String?
+        var leaf: String {
+            get {
+                _leaf!
+            }
+            set {
+                _leaf = newValue
+            }
+        }
+
+        var _offset: String.Index?
+        var offset: String.Index {
+            get {
+                _offset!
+            }
+            set {
+                _offset = newValue
+            }
+        }
+
+        init(_ root: Node, position: Int = 0) {
+            if position < 0 || position > root.count {
+                fatalError("position out of range")
+            }
+
+            self.root = root
+            self.position = position
+            stack = []
+
+            // Technically, iterators are supposed to be created in O(1) time, and this
+            // is O(log n), but I'm going to ignore that for now.
+            var node = root
+            var pos = position
+            while true {
+                switch node.val {
+                case .leaf(let string):
+                    self.leaf = string
+                    self.offset = string.index(string.startIndex, offsetBy: pos)
+                    return
+                case .concat(let left, let right):
+                    if pos < left.count {
+                        stack.append((node, 0))
+                        node = left
+                    } else {
+                        stack.append((node, 1))
+                        pos -= left.count
+                        node = right
+                    }
+                }
+            }
+        }
+
+        mutating func next() -> Character? {
+            if position == root.count {
+                return nil
+            }
+
+            if offset == leaf.endIndex {
+                // go up until we get to a node where we haven't traversed the right child
+                var node: Node?
+                while !stack.isEmpty {
+                    let (n, childNumber) = stack.removeLast()
+                    if childNumber == 0 {
+                        node = n
+                        break
+                    }
+                }
+
+                // move to the right child of that node
+                guard var node = node, case let .concat(_, n) = node.val else {
+                    fatalError("shouldn't happen")
+                }
+
+                node = n
+
+                // go down the left side of that node
+                while true {
+                    switch node.val {
+                    case .leaf(let string):
+                        leaf = string
+                        offset = string.startIndex
+                        break
+                    case .concat(let left, _):
+                        stack.append((node, 1))
+                        node = left
+                    }
+                }
+            }
+
+            let result = leaf[offset]
+            offset = leaf.index(after: offset)
+            position += 1
+
+            return result
+        }
+    }
+
+    func makeIterator() -> Iterator {
+        Iterator(self)
     }
 }
 
@@ -158,6 +268,12 @@ public struct Rope {
         let (n1, _) = root.split(at: subrange.lowerBound)
         let (_, n2) = root.split(at: subrange.upperBound)
         root = n1 + n2
+    }
+}
+
+extension Rope: Sequence {
+    public func makeIterator() -> some IteratorProtocol<Character> {
+        root.makeIterator()
     }
 }
 

@@ -175,4 +175,13 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual("Hello!", rope.description)
         XCTAssertEqual(6, rope.count)
     }
+
+    func testForIn() {
+        let rope = Rope("Hello, world!")
+        var result = ""
+        for char in rope {
+            result.append(char)
+        }
+        XCTAssertEqual("Hello, world!", result)
+    }
 }
