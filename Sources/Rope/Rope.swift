@@ -40,21 +40,6 @@ class Node {
         }
     }
 
-    subscript(index: Int) -> Character {
-        assert((0..<count).contains(index))
-
-        switch val {
-        case .leaf(let string):
-            return string[string.index(string.startIndex, offsetBy: index)]
-        case .concat(let left, let right):
-            if index < left.count {
-                return left[index]
-            } else {
-                return right[index - left.count]
-            }
-        }
-    }
-
     // returns two nodes, with ranges 0..<index and index..<count
     // index is in the range 0...count
     func split(at index: Int) -> (Node, Node) {
@@ -197,6 +182,43 @@ extension Node: Sequence {
     }
 }
 
+extension Node: Collection {
+    var startIndex: Int {
+        0
+    }
+
+    var endIndex: Int {
+        count
+    }
+
+    func index(after i: Int) -> Int {
+        i + 1
+    }
+
+    subscript(index: Int) -> Character {
+        assert((0..<count).contains(index))
+
+        switch val {
+        case .leaf(let string):
+            return string[string.index(string.startIndex, offsetBy: index)]
+        case .concat(let left, let right):
+            if index < left.count {
+                return left[index]
+            } else {
+                return right[index - left.count]
+            }
+        }
+    }
+
+    public subscript(range: Range<Int>) -> Rope {
+        assert(range.lowerBound >= 0 && range.upperBound <= count)
+
+        let (_, n) = split(at: range.lowerBound)
+        let (res, _) = n.split(at: range.upperBound - range.lowerBound)
+        return Rope(res)
+    }
+}
+
 public struct Rope {
     var root: Node
 
@@ -216,12 +238,6 @@ public struct Rope {
         root = node
     }
 
-    public subscript(index: Int) -> Character {
-        get {
-            root[index]
-        }
-    }
-
     public var count: Int {
         root.count
     }
@@ -229,12 +245,6 @@ public struct Rope {
     func split(at index: Int) -> (Rope, Rope) {
         let (n1, n2) = root.split(at: index)
         return (Rope(n1), Rope(n2))
-    }
-
-    subscript(range: Range<Int>) -> Rope {
-        let (_, n) = root.split(at: range.lowerBound)
-        let (res, _) = n.split(at: range.upperBound - range.lowerBound)
-        return Rope(res)
     }
 
     mutating func insert(_ newElement: Character, at i: Int) {
@@ -263,6 +273,32 @@ public struct Rope {
 extension Rope: Sequence {
     public func makeIterator() -> some IteratorProtocol<Character> {
         root.makeIterator()
+    }
+}
+
+extension Rope: Collection {
+    public var startIndex: Int {
+        root.startIndex
+    }
+
+    public var endIndex: Int {
+        root.endIndex
+    }
+
+    public func index(after i: Int) -> Int {
+        if i < 0 || i >= count {
+            fatalError("index out of bounds")
+        }
+
+        return i + 1
+    }
+
+    public subscript(index: Int) -> Character {
+        root[index]
+    }
+
+    public subscript(range: Range<Int>) -> Rope {
+        root[range]
     }
 }
 
