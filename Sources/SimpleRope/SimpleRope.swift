@@ -210,20 +210,20 @@ extension Node: Collection {
         }
     }
 
-    public subscript(range: Range<Int>) -> Rope {
+    public subscript(range: Range<Int>) -> SimpleRope {
         assert(range.lowerBound >= 0 && range.upperBound <= count)
 
         let (_, n) = split(at: range.lowerBound)
         let (res, _) = n.split(at: range.upperBound - range.lowerBound)
-        return Rope(res)
+        return SimpleRope(res)
     }
 }
 
-public struct Rope {
+public struct SimpleRope {
     var root: Node
 
-    public static func + (lhs: Rope, rhs: Rope) -> Rope {
-        Rope(lhs.root.concat(rhs.root))
+    public static func + (lhs: SimpleRope, rhs: SimpleRope) -> SimpleRope {
+        SimpleRope(lhs.root.concat(rhs.root))
     }
 
     init(_ string: String) {
@@ -242,9 +242,9 @@ public struct Rope {
         root.count
     }
 
-    func split(at index: Int) -> (Rope, Rope) {
+    func split(at index: Int) -> (SimpleRope, SimpleRope) {
         let (n1, n2) = root.split(at: index)
-        return (Rope(n1), Rope(n2))
+        return (SimpleRope(n1), SimpleRope(n2))
     }
 
     mutating func insert(_ newElement: Character, at i: Int) {
@@ -270,13 +270,13 @@ public struct Rope {
     }
 }
 
-extension Rope: Sequence {
+extension SimpleRope: Sequence {
     public func makeIterator() -> some IteratorProtocol<Character> {
         root.makeIterator()
     }
 }
 
-extension Rope: Collection {
+extension SimpleRope: Collection {
     public var startIndex: Int {
         root.startIndex
     }
@@ -297,12 +297,12 @@ extension Rope: Collection {
         root[index]
     }
 
-    public subscript(range: Range<Int>) -> Rope {
+    public subscript(range: Range<Int>) -> SimpleRope {
         root[range]
     }
 }
 
-extension Rope: CustomStringConvertible {
+extension SimpleRope: CustomStringConvertible {
     public var description: String {
         String(self)
     }
