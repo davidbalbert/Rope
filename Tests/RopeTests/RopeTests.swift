@@ -9,11 +9,12 @@ import XCTest
 @testable import Rope
 
 final class RopeTests: XCTestCase {
-    func testAppend() {
+    func testAppendCharacter() {
         var rope = Rope()
         rope.append("a")
         rope.append("b")
         rope.append("c")
         XCTAssertEqual(rope.count, 3)
+        XCTAssertEqual("abc", String(rope))
     }
 }

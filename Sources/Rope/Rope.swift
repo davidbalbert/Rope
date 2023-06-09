@@ -148,14 +148,17 @@ extension Rope {
     struct Index {
         weak var root: Node?
         let mutationCount: Int
+        var position: Int
         var path: [PathElement]
 
-        var current: Node // Always a leaf. Only valid if offset is present.
-        var idx: String.Index? // nil if we're at the end of the rope
+        var current: Node // Root if we're at the end of the rope. Otherwise, a leaf.
+        var idx: String.Index? // nil if we're at the end of the rope.
+
 
         init(startOf rope: Rope) {
             self.root = rope.root
             self.mutationCount = rope.root.mutationCount
+            self.position = 0
             self.path = []
 
             var node = rope.root
@@ -170,6 +173,7 @@ extension Rope {
         
         init(endOf rope: Rope) {
             self.root = rope.root
+            self.position = rope.count
             self.mutationCount = rope.root.mutationCount
             self.path = []
             self.current = rope.root
@@ -190,6 +194,7 @@ extension Rope {
 
                 guard !path.isEmpty else {
                     self.idx = nil
+                    self.current = root! // assume root is not nil because Rope.index(after:) called validate(for:)
                     return
                 }
 
@@ -203,17 +208,114 @@ extension Rope {
 
                 self.current = node
             }
+
+            self.position += 1
         }
 
-        func validate(for rope: Rope) {
-            precondition(root === rope.root)
-            precondition(mutationCount == rope.root.mutationCount)
+        mutating func formPredecessor() {
+            if idx == current.string.startIndex && path.allSatisfy({ $0.slot == 0 }) {
+                preconditionFailure("Cannot go below startIndex")
+            }
+
+            var i: String.Index
+            if let idx {
+                i = idx
+            } else {
+                // we're at endIndex
+                var node = current // current == root in this situation
+                while !node.isLeaf {
+                    path.append(PathElement(node: node, slot: node.children.count - 1))
+                    node = node.children[node.children.count - 1]
+                }
+
+                current = node
+                i = node.string.endIndex
+            }
+
+            if i != current.string.startIndex {
+                self.idx = current.string.index(before: i)
+            } else {
+                while let el = path.last, el.slot == 0 {
+                    path.removeLast()
+                }
+
+                path[path.count - 1].slot -= 1
+                var node = path[path.count - 1].child
+
+                while !node.isLeaf {
+                    path.append(PathElement(node: node, slot: node.children.count - 1))
+                    node = node.children[node.children.count - 1]
+                }
+
+                self.current = node
+                self.idx = node.string.index(before: node.string.endIndex)
+            }
+
+            position -= 1
         }
 
-        static func validate(_ left: Index, _ right: Index) {
-            precondition(left.root === right.root && left.root != nil)
-            precondition(left.mutationCount == left.root!.mutationCount)
-            precondition(left.mutationCount == right.mutationCount)
+        func validate(for root: Node) {
+            precondition(self.root === root)
+            precondition(self.mutationCount == root.mutationCount)
         }
+
+        func validate(_ other: Index) {
+            precondition(root === other.root && root != nil)
+            precondition(mutationCount == root!.mutationCount)
+            precondition(mutationCount == other.mutationCount)
+        }
+    }
+}
+
+extension Rope.Index: Comparable {
+    static func < (left: Rope.Index, right: Rope.Index) -> Bool {
+        left.validate(right)
+        return left.position < right.position
+    }
+
+    static func == (lhs: Rope.Index, rhs: Rope.Index) -> Bool {
+        lhs.validate(rhs)
+        return lhs.position == rhs.position
+    }
+}
+
+extension Rope: BidirectionalCollection {
+    var startIndex: Index {
+        Index(startOf: self)
+    }
+
+    var endIndex: Index {
+        Index(endOf: self)
+    }
+
+    func index(before i: Index) -> Index {
+        i.validate(for: root)
+        var i = i
+        i.formPredecessor()
+        return i
+    }
+
+    func index(after i: Index) -> Index {
+        i.validate(for: root)
+        var i = i
+        i.formSuccessor()
+        return i
+    }
+
+    func formIndex(before i: inout Index) {
+        i.validate(for: root)
+        i.formPredecessor()
+    }
+
+    func formIndex(after i: inout Index) {
+        i.validate(for: root)
+        i.formSuccessor()
+    }
+
+    subscript(index: Index) -> Character {
+        index.validate(for: root)
+        precondition(index.idx != nil, "Index out of bounds")
+        
+        return index.current.string[index.idx!]
     }
 }
