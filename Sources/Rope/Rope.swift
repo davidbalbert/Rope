@@ -180,13 +180,24 @@ extension Rope {
             self.idx = nil
         }
 
+        var isAtEnd: Bool {
+            return idx == nil
+        }
+
+        var value: Character? {
+            guard let idx else { return nil }
+            return current.string[idx]
+        }
+
         mutating func formSuccessor() {
-            guard let idx else {
+            guard var idx else {
                 preconditionFailure("Cannot advance past endIndex")
             }
+            
+            idx = current.string.index(after: idx)
 
             if idx < current.string.endIndex {
-                self.idx = current.string.index(after: idx)
+                self.idx = idx
             } else {
                 while let el = path.last, el.slot == el.node.children.count - 1 {
                     path.removeLast()
@@ -207,6 +218,7 @@ extension Rope {
                 }
 
                 self.current = node
+                self.idx = node.string.startIndex
             }
 
             self.position += 1
@@ -280,6 +292,26 @@ extension Rope.Index: Comparable {
 }
 
 extension Rope: BidirectionalCollection {
+    struct Iterator: IteratorProtocol {
+        let rope: Rope // retain rope to make sure it doesn't get dealocated during iteration
+        var index: Index
+
+        init(rope: Rope) {
+            self.rope = rope
+            self.index = rope.startIndex
+        }
+
+        mutating func next() -> Character? {
+            guard let c = index.value else { return nil }
+            index.formSuccessor()
+            return c
+        }
+    }
+
+    func makeIterator() -> Iterator {
+        Iterator(rope: self)
+    }
+
     var startIndex: Index {
         Index(startOf: self)
     }
@@ -314,8 +346,8 @@ extension Rope: BidirectionalCollection {
 
     subscript(index: Index) -> Character {
         index.validate(for: root)
-        precondition(index.idx != nil, "Index out of bounds")
+        precondition(!index.isAtEnd, "Index out of bounds")
         
-        return index.current.string[index.idx!]
+        return index.value!
     }
 }
