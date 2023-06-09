@@ -30,9 +30,14 @@ struct Rope {
     }
 
     mutating func append(_ c: Character) {
+        insert(c, at: endIndex)
+    }
+
+    mutating func insert(_ c: Character, at i: Index) {
+        i.validate(for: root)
         ensureUniqueRoot()
 
-        if let node = root.append(c) {
+        if let node = root.insert(c, at: i.position) {
             root = node
         }
     }
@@ -82,12 +87,12 @@ extension Rope.Node {
         return height == 0
     }
 
-    func append(_ c: Character) -> Rope.Node? {
+    func insert(_ c: Character, at position: Int) -> Rope.Node? {
         mutationCount &+= 1
 
         if isLeaf {
             if count < leafOrder {
-                string.append(c)
+                string.insert(c, at: string.index(string.startIndex, offsetBy: position))
                 count += 1
                 return nil
             } else {
@@ -95,13 +100,24 @@ extension Rope.Node {
                 let left = Rope.Node(String(string[..<mid]))
                 let right = Rope.Node(String(string[mid...]))
                 let node = Rope.Node(1, count, [left, right], "")
-                return node.append(c) ?? node
+                return node.insert(c, at: position) ?? node
             }
         } else {
             if count < internalOrder {
-                ensureUniqueChild(at: count - 1)
-                if let node = children[count - 1].append(c) {
-                    children[count - 1] = node
+                // find the child that contains the position
+                var pos = position
+                var i = 0
+
+                // we assume that the position is valid, so we don't check to see
+                // if we go past the end of the children.
+                while pos >= children[i].count {
+                    pos -= children[i].count
+                    i += 1
+                }
+
+                ensureUniqueChild(at: i)
+                if let node = children[i].insert(c, at: pos) {
+                    children[i] = node
                 }
 
                 count += 1
@@ -111,7 +127,7 @@ extension Rope.Node {
                 let left = Rope.Node(height, Array(children[..<mid]))
                 let right = Rope.Node(height, Array(children[mid...]))
                 let node = Rope.Node(height + 1, count, [left, right], "")
-                return node.append(c) ?? node
+                return node.insert(c, at: position) ?? node
             }
         }
     }
