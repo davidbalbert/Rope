@@ -91,7 +91,7 @@ extension Rope.Node {
         mutationCount &+= 1
 
         if isLeaf {
-            if count < leafOrder {
+            if count < leafOrder-1 {
                 string.insert(c, at: string.index(string.startIndex, offsetBy: position))
                 count += 1
                 return nil
