@@ -21,8 +21,12 @@ struct Rope {
         self.root = root
     }
 
-    init() {
+    public init() {
         self.init(Node())
+    }
+
+    public init(_ string: String) {
+        self.init(Node(string))
     }
 
     var count: Int {
@@ -32,7 +36,6 @@ struct Rope {
     mutating func append(_ c: Character) {
         insert(c, at: endIndex)
     }
-
     mutating func insert(_ c: Character, at i: Index) {
         i.validate(for: root)
         ensureUniqueRoot()
@@ -48,7 +51,6 @@ struct Rope {
         }
     }
 }
-
 extension Rope {
     class Node {
         var height: Int
