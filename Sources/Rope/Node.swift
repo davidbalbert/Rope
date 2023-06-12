@@ -80,8 +80,8 @@ extension Rope {
             }
         }
 
-        // Mutates self if self is a leaf. In that situation,
-        // self must be unique by this point.
+        // Mutating. Self must be unique at this point.
+        // - only mutates if self is a leaf.
         func concatinate(_ other: Node) -> Node {
             let h1 = height
             let h2 = other.height
@@ -125,6 +125,41 @@ extension Rope {
                 } else {
                     return Node(children: children.dropLast(), mergedWith: new.children)
                 }
+            }
+        }
+
+        // Mutating. Self must be unique at this point.
+        func merge(withLeaf other: Node) -> Node {
+            assert(isLeaf && other.isLeaf)
+
+            if atLeastMinSize && other.atLeastMinSize {
+                return Node([self, other])
+            }
+
+            let newLeaf = pushLeaf(possiblySplitting: other.string)
+            if let newLeaf {
+                return Node([self, newLeaf])
+            } else {
+                return self
+            }
+        }
+
+        // Mutating. Self must be unique at this point.
+        func pushLeaf(possiblySplitting s: String) -> Node? {
+            assert(isLeaf)
+
+            string += s
+
+            if string.count <= maxLeaf {
+                count = string.count
+                return nil
+            } else {
+                // TODO: split at newline boundary if we can
+                let splitPoint = string.index(string.startIndex, offsetBy: Swift.max(minLeaf, string.count - maxLeaf))
+                let split = String(string[splitPoint...])
+                string = String(string[..<splitPoint])
+                count = string.count
+                return Node(split)
             }
         }
 
@@ -184,41 +219,6 @@ extension Rope {
             // All properties are value types, so it's sufficient
             // to just create a new Node instance.
             return Node(height, count, children, string)
-        }
-
-        // Can mutate self. Must be called with a unique self.
-        func merge(withLeaf other: Node) -> Node {
-            assert(isLeaf && other.isLeaf)
-
-            if atLeastMinSize && other.atLeastMinSize {
-                return Node([self, other])
-            }
-
-            let newLeaf = pushLeaf(possiblySplitting: other.string)
-            if let newLeaf {
-                return Node([self, newLeaf])
-            } else {
-                return self
-            }
-        }
-
-        // Mutating. Must be called on a non-shared node.
-        func pushLeaf(possiblySplitting s: String) -> Node? {
-            assert(isLeaf)
-
-            string += s
-
-            if string.count <= maxLeaf {
-                count = string.count
-                return nil
-            } else {
-                // TODO: split at newline boundary if we can
-                let splitPoint = string.index(string.startIndex, offsetBy: Swift.max(minLeaf, string.count - maxLeaf))
-                let split = String(string[splitPoint...])
-                string = String(string[..<splitPoint])
-                count = string.count
-                return Node(split)
-            }
         }
     }
 }
