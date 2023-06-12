@@ -38,9 +38,17 @@ final class RopeTests: XCTestCase {
     }
 
     func testInitWithStringBiggerThanALeaf() {
-        let string = String(repeating: "a", count: leafOrder)
+        let string = String(repeating: "a", count: maxLeaf+1)
         let rope = Rope(string)
-        XCTAssertEqual(rope.count, leafOrder)
+        XCTAssertEqual(rope.count, maxLeaf+1)
         XCTAssertEqual(string, String(rope))
+    }
+
+    func testConcat() {
+        let s1 = String(repeating: "a", count: 2000)
+        let s2 = String(repeating: "b", count: 2000)
+        let rope = Rope(s1) + Rope(s2)
+        XCTAssertEqual(rope.count, 4000)
+        XCTAssertEqual(s1 + s2, String(rope))
     }
 }

@@ -9,13 +9,23 @@ import Foundation
 
 // a rope made out of a B-tree
 // internal nodes are order 8: 4...8 children
-// leaf nodes are order 1024: 511..<1024 characters (elements), unless it's root, then 0..<1024
+// leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024
 
-let internalOrder = 8
-let leafOrder = 1024
+let minChild = 4
+let maxChild = 8
+
+let minLeaf = 511
+let maxLeaf = 1023
 
 struct Rope {
     var root: Node
+
+    static func + (_ left: Rope, _ right: Rope) -> Rope {
+        var b = Builder()
+        b.push(left.root)
+        b.push(right.root)
+        return Rope(b.build())
+    }
 
     init(_ root: Node) {
         self.root = root
@@ -26,7 +36,15 @@ struct Rope {
     }
 
     public init(_ string: String) {
-        self.init(Node(string))
+        var b = Builder()
+        b.push(string: string)
+        self.init(b.build())
+    }
+
+    public init<S>(_ string: S) where S: Collection, S.Element == Character {
+        var b = Builder()
+        b.push(string: string)
+        self.init(b.build())
     }
 
     var count: Int {
@@ -36,6 +54,7 @@ struct Rope {
     mutating func append(_ c: Character) {
         insert(c, at: endIndex)
     }
+
     mutating func insert(_ c: Character, at i: Index) {
         i.validate(for: root)
         ensureUniqueRoot()
@@ -45,12 +64,22 @@ struct Rope {
         }
     }
 
+    // mutating func insert<S>(contentsOf newElements: S, at i: Index) where S: Collection, S.Element == Character {
+    //     i.validate(for: root)
+    //     ensureUniqueRoot()
+
+    //     if let node = root.insert(contentsOf: newElements, at: i.position) {
+    //         root = node
+    //     }
+    // }
+
     mutating func ensureUniqueRoot() {
         if !isKnownUniquelyReferenced(&root) {
             root = root.clone()
         }
     }
 }
+
 extension Rope {
     class Node {
         var height: Int
@@ -70,14 +99,96 @@ extension Rope {
 }
 
 extension Rope.Node {
-    convenience init(_ height: Int, _ children: [Rope.Node]) {
-        precondition(internalOrder/2 <= children.count && children.count <= internalOrder)
-        let count = children.reduce(0) { $0 + $1.count }
+    typealias Node = Rope.Node
+
+    static func concat(_ left: Node, _ right: Node) -> Node {
+        let h1 = left.height
+        let h2 = right.height
+
+        if h1 < h2 {
+            if h1 == h2 - 1 && left.atLeastMinSize {
+                return mergeChildren([left], right.children)
+            }
+            
+            // TODO: xi has right.children[0].clone(). Is that necessary here?
+            let new = concat(left, right.children[0])
+            if new.height == h2 - 1 {
+                return mergeChildren([new], Array(right.children.dropFirst()))
+            } else {
+                return mergeChildren(new.children, Array(right.children.dropFirst()))
+            }
+        } else if h1 == h2 {
+            if left.atLeastMinSize && right.atLeastMinSize {
+                return Node([left, right])
+            } else if h1 == 0 {
+                return mergeLeaves(left, right)
+            } else {
+                return mergeChildren(left.children, right.children)
+            }
+        } else {
+            if h2 == h1 - 1 && right.atLeastMinSize {
+                return mergeChildren(left.children, [right])
+            }
+
+            let new = concat(left.children.last!, right)
+            if new.height == h1 - 1 {
+                return mergeChildren(Array(left.children.dropLast()), [new])
+            } else {
+                return mergeChildren(Array(left.children.dropLast()), new.children)
+            }
+        }
+    }
+
+    static func mergeLeaves(_ left: Node, _ right: Node) -> Node {
+        assert(left.isLeaf && right.isLeaf)
+
+        if left.atLeastMinSize && right.atLeastMinSize {
+            return Node([left, right])
+        }
+
+        let remainder = left.string.push(possiblySplitting: right.string)
+        left.count = left.string.count
+
+        if let remainder {
+            return Node([left, Node(remainder)])
+        } else {
+            return left
+        }
+    }
+
+    static func mergeChildren(_ c1: [Node], _ c2: [Node]) -> Node {
+        let count = c1.count + c2.count
+        if count <= maxChild {
+            return Node(c1 + c2)
+        } else {
+            let split = count / 2
+            let children = [c1, c2].joined()
+            let left = Node(children.prefix(split))
+            let right = Node(children.dropFirst(split))
+            return Node([left, right])
+        }
+    }
+
+    convenience init(_ children: [Node]) {
+        assert(1 <= children.count && children.count <= maxChild)
+        let height = children[0].height + 1
+        var count = 0
+
+        for child in children {
+            assert(child.height + 1 == height)
+            assert(child.atLeastMinSize)
+            count += child.count
+        }
+
         self.init(height, count, children, "")
     }
 
+    convenience init<S>(_ seq: S) where S: Collection, S.Element == Node {
+        self.init(Array(seq))
+    }
+
     convenience init(_ string: String) {
-        precondition(string.count < leafOrder)
+        assert(string.count <= maxLeaf)
         self.init(0, string.count, [], string)
     }
 
@@ -89,23 +200,31 @@ extension Rope.Node {
         return height == 0
     }
 
-    func insert(_ c: Character, at position: Int) -> Rope.Node? {
+    var atLeastMinSize: Bool {
+        if isLeaf {
+            return count >= minLeaf
+        } else {
+            return count >= minChild
+        }
+    }
+
+    func insert(_ c: Character, at position: Int) -> Node? {
         mutationCount &+= 1
 
         if isLeaf {
-            if count < leafOrder-1 {
+            if count < maxLeaf {
                 string.insert(c, at: string.index(string.startIndex, offsetBy: position))
                 count += 1
                 return nil
             } else {
-                let mid = string.index(string.startIndex, offsetBy: leafOrder / 2)
+                let mid = string.index(string.startIndex, offsetBy: minLeaf+1)
                 let left = Rope.Node(String(string[..<mid]))
                 let right = Rope.Node(String(string[mid...]))
                 let node = Rope.Node(1, count, [left, right], "")
                 return node.insert(c, at: position) ?? node
             }
         } else {
-            if count < internalOrder {
+            if count < maxChild {
                 // find the child that contains the position
                 var pos = position
                 var i = 0
@@ -125,10 +244,10 @@ extension Rope.Node {
                 count += 1
                 return nil
             } else {
-                let mid = internalOrder / 2
-                let left = Rope.Node(height, Array(children[..<mid]))
-                let right = Rope.Node(height, Array(children[mid...]))
-                let node = Rope.Node(height + 1, count, [left, right], "")
+                let mid = minChild
+                let left = Node(children[..<mid])
+                let right = Node(children[mid...])
+                let node = Node([left, right])
                 return node.insert(c, at: position) ?? node
             }
         }
@@ -140,11 +259,11 @@ extension Rope.Node {
         }
     }
 
-    func clone() -> Rope.Node {
+    func clone() -> Node {
         if isLeaf {
-            return Rope.Node(string)
+            return Node(string)
         } else {
-            return Rope.Node(height, count, children, "")
+            return Node(children)
         }
     }
 }
@@ -367,5 +486,121 @@ extension Rope: BidirectionalCollection {
         precondition(!index.isAtEnd, "Index out of bounds")
         
         return index.value!
+    }
+}
+
+extension Rope {
+    struct Builder {
+        // the inner array always has at least one element
+        var stack: [[Node]] = []
+
+        mutating func push(_ node: Node) {
+            var n = node
+
+            while true {
+                if stack.last != nil && stack.last!.last!.height < n.height {
+                    n = Node.concat(pop(), n)
+                } else if stack.last != nil && stack.last!.last!.height == n.height {
+                    if stack.last!.last!.atLeastMinSize && n.atLeastMinSize {
+                        stack[stack.count - 1].append(n)
+                    } else if n.height == 0 {
+                        let newLeaf = stack[stack.count - 1][stack[stack.count - 1].count - 1].string.push(possiblySplitting: n.string)
+                        // TODO: find a better place to do this
+                        stack[stack.count - 1][stack[stack.count - 1].count - 1].count = stack[stack.count - 1][stack[stack.count - 1].count - 1].string.count
+                        if let newLeaf {
+                            stack[stack.count - 1].append(Node(newLeaf))
+                        }
+                    } else {
+                        let last = stack[stack.count - 1].removeLast()
+                        let c1 = last.children
+                        let c2 = n.children
+                        let count = c1.count + c2.count
+                        if count <= maxChild {
+                            stack[stack.count - 1].append(Node(c1 + c2))
+                        } else {
+                            let split = count / 2
+                            let children = [c1, c2].joined()
+                            stack[stack.count - 1].append(Node(children.prefix(split)))
+                            stack[stack.count - 1].append(Node(children.dropFirst(split)))
+                        }
+                    }
+
+                    if stack[stack.count - 1].count < maxChild {
+                        break
+                    }
+
+                    n = pop()
+                } else {
+                    stack.append([n])
+                    break
+                }
+            }
+        }
+
+        mutating func push(leaf: String) {
+            push(Node(leaf))
+        }
+
+        mutating func push(string s: String) {
+            if s.isEmpty {
+                return
+            }
+
+            if s.count <= maxLeaf {
+                push(leaf: s)
+            } else {
+                var i = s.startIndex
+                while i < s.endIndex {
+                    // TODO: we could pick a better length, e.g. by looking for the next
+                    // newline.
+                    let chunk = s[i...].prefix(minLeaf)
+                    i = chunk.endIndex
+                    push(leaf: String(chunk))
+                }
+            }
+        }
+
+        mutating func push<S>(string s: S) where S: Collection, S.Element == Character {
+            push(string: String(s))
+        }
+
+        mutating func pop() -> Node {
+            let nodes = stack.removeLast()
+            if nodes.count == 1 {
+                return nodes[0]
+            } else {
+                return Node(nodes)
+            }
+        }
+
+        mutating func build() -> Node {
+            if stack.isEmpty {
+                return Node()
+            } else {
+                var n = pop()
+                while !stack.isEmpty {
+                    n = Node.concat(pop(), n)
+                }
+
+                return n
+            }
+        }
+
+    }
+}
+
+extension String {
+    mutating func push(possiblySplitting other: String) -> String? {
+        self += other
+
+        if count <= maxLeaf {
+            return nil
+        } else {
+            // TODO: split at newline boundary if we can
+            let splitPoint = index(startIndex, offsetBy: max(minLeaf, count - maxLeaf))
+            let split = String(self[splitPoint...])
+            self = String(self[..<splitPoint])
+            return split
+        }
     }
 }
