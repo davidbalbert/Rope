@@ -17,11 +17,15 @@ extension Rope {
 
             while true {
                 if stack.last != nil && stack.last!.last!.height < n.height {
+                    // Can mutate the result of calling pop().
                     n = Node.concat(pop(), n)
                 } else if stack.last != nil && stack.last!.last!.height == n.height {
                     if stack.last!.last!.atLeastMinSize && n.atLeastMinSize {
                         stack[stack.count - 1].append(n)
                     } else if n.height == 0 {
+                        ensureFinalTreeIsUnique()
+
+                        // Mutates stack[stack.count - 1][stack[stack.count - 1].count - 1]
                         let newLeaf = stack[stack.count - 1][stack[stack.count - 1].count - 1].pushLeaf(possiblySplitting: n.string)
                         if let newLeaf {
                             stack[stack.count - 1].append(newLeaf)
@@ -95,6 +99,7 @@ extension Rope {
             } else {
                 var n = pop()
                 while !stack.isEmpty {
+                    // can mutate the result of calling pop
                     n = Node.concat(pop(), n)
                 }
 
@@ -102,5 +107,10 @@ extension Rope {
             }
         }
 
+        mutating func ensureFinalTreeIsUnique() {
+            if !isKnownUniquelyReferenced(&stack[stack.count - 1][stack[stack.count - 1].count - 1]) {
+                stack[stack.count - 1][stack[stack.count - 1].count - 1] = stack[stack.count - 1][stack[stack.count - 1].count - 1].clone()
+            }
+        }
     }
 }

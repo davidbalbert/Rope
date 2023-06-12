@@ -23,6 +23,8 @@ extension Rope {
             self.string = string
         }
 
+        // Can mutate left because mergeLeaves can mutate left.
+        // Left must be guaranteed unique here.
         static func concat(_ left: Node, _ right: Node) -> Node {
             let h1 = left.height
             let h2 = right.height
@@ -33,6 +35,8 @@ extension Rope {
                 }
 
                 // TODO: xi has right.children[0].clone(). Is that necessary here?
+                // I don't think so because I don't think it's possible for concat
+                // to modify right.
                 let new = concat(left, right.children[0])
                 if new.height == h2 - 1 {
                     return mergeChildren([new], Array(right.children.dropFirst()))
@@ -43,6 +47,7 @@ extension Rope {
                 if left.atLeastMinSize && right.atLeastMinSize {
                     return Node([left, right])
                 } else if h1 == 0 {
+                    // TODO: this mutates left
                     return mergeLeaves(left, right)
                 } else {
                     return mergeChildren(left.children, right.children)
@@ -51,6 +56,10 @@ extension Rope {
                 if h2 == h1 - 1 && right.atLeastMinSize {
                     return mergeChildren(left.children, [right])
                 }
+
+                // Because concat can mutate left, we need to make sure that
+                // left.children.last is unique (or copied) before calling concat.
+                left.ensureUniqueChild(at: left.children.count-1)
 
                 let new = concat(left.children.last!, right)
                 if new.height == h1 - 1 {
@@ -61,6 +70,7 @@ extension Rope {
             }
         }
 
+        // Mutates left.
         static func mergeLeaves(_ left: Node, _ right: Node) -> Node {
             assert(left.isLeaf && right.isLeaf)
 
@@ -128,7 +138,7 @@ extension Rope {
             }
         }
 
-        // mutates self. Self must be unique at this point
+        // Mutates self. Self must be unique at this point
         func insert(_ c: Character, at position: Int) -> Node? {
             mutationCount &+= 1
 
