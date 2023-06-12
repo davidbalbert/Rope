@@ -68,12 +68,12 @@ extension Rope {
                 return Node([left, right])
             }
 
-            let remainder = left.string.push(possiblySplitting: right.string)
+            let newLeaf = left.pushLeaf(possiblySplitting: right.string)
             // TODO: find a better way to do this
             left.count = left.string.count
 
-            if let remainder {
-                return Node([left, Node(remainder)])
+            if let newLeaf {
+                return Node([left, newLeaf])
             } else {
                 return left
             }
@@ -190,21 +190,22 @@ extension Rope {
                 return Node(children)
             }
         }
-    }
-}
 
-extension String {
-    mutating func push(possiblySplitting other: String) -> String? {
-        self += other
+        // Mutating. Must be called on a non-shared node.
+        func pushLeaf(possiblySplitting s: String) -> Node? {
+            assert(isLeaf)
 
-        if count <= maxLeaf {
-            return nil
-        } else {
-            // TODO: split at newline boundary if we can
-            let splitPoint = index(startIndex, offsetBy: max(minLeaf, count - maxLeaf))
-            let split = String(self[splitPoint...])
-            self = String(self[..<splitPoint])
-            return split
+            string += s
+
+            if string.count <= maxLeaf {
+                return nil
+            } else {
+                // TODO: split at newline boundary if we can
+                let splitPoint = string.index(string.startIndex, offsetBy: Swift.max(minLeaf, string.count - maxLeaf))
+                let split = String(string[splitPoint...])
+                string = String(string[..<splitPoint])
+                return Node(split)
+            }
         }
     }
 }
