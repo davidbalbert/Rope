@@ -23,82 +23,6 @@ extension Rope {
             self.string = string
         }
 
-        // Can mutate left because mergeLeaves can mutate left.
-        // Left must be guaranteed unique here.
-        static func concat(_ left: Node, _ right: Node) -> Node {
-            let h1 = left.height
-            let h2 = right.height
-
-            if h1 < h2 {
-                if h1 == h2 - 1 && left.atLeastMinSize {
-                    return mergeChildren([left], right.children)
-                }
-
-                // TODO: xi has right.children[0].clone(). Is that necessary here?
-                // I don't think so because I don't think it's possible for concat
-                // to modify right.
-                let new = concat(left, right.children[0])
-                if new.height == h2 - 1 {
-                    return mergeChildren([new], Array(right.children.dropFirst()))
-                } else {
-                    return mergeChildren(new.children, Array(right.children.dropFirst()))
-                }
-            } else if h1 == h2 {
-                if left.atLeastMinSize && right.atLeastMinSize {
-                    return Node([left, right])
-                } else if h1 == 0 {
-                    // TODO: this mutates left
-                    return mergeLeaves(left, right)
-                } else {
-                    return mergeChildren(left.children, right.children)
-                }
-            } else {
-                if h2 == h1 - 1 && right.atLeastMinSize {
-                    return mergeChildren(left.children, [right])
-                }
-
-                // Because concat can mutate left, we need to make sure that
-                // left.children.last is unique (or copied) before calling concat.
-                left.ensureUniqueChild(at: left.children.count-1)
-
-                let new = concat(left.children.last!, right)
-                if new.height == h1 - 1 {
-                    return mergeChildren(Array(left.children.dropLast()), [new])
-                } else {
-                    return mergeChildren(Array(left.children.dropLast()), new.children)
-                }
-            }
-        }
-
-        // Mutates left.
-        static func mergeLeaves(_ left: Node, _ right: Node) -> Node {
-            assert(left.isLeaf && right.isLeaf)
-
-            if left.atLeastMinSize && right.atLeastMinSize {
-                return Node([left, right])
-            }
-
-            let newLeaf = left.pushLeaf(possiblySplitting: right.string)
-            if let newLeaf {
-                return Node([left, newLeaf])
-            } else {
-                return left
-            }
-        }
-
-        static func mergeChildren(_ c1: [Node], _ c2: [Node]) -> Node {
-            let count = c1.count + c2.count
-            if count <= maxChild {
-                return Node(c1 + c2)
-            } else {
-                let split = count / 2
-                let children = [c1, c2].joined()
-                let left = Node(children.prefix(split))
-                let right = Node(children.dropFirst(split))
-                return Node([left, right])
-            }
-        }
-
         convenience init(_ children: [Node]) {
             assert(1 <= children.count && children.count <= maxChild)
             let height = children[0].height + 1
@@ -111,6 +35,24 @@ extension Rope {
             }
 
             self.init(height, count, children, "")
+        }
+
+        convenience init<C>(_ children: C) where C: Sequence, C.Element == Node {
+            self.init(Array(children))
+        }
+
+        convenience init<C1, C2>(children leftChildren: C1, mergedWith rightChildren: C2) where C1: Collection, C2: Collection, C1.Element == Node, C1.Element == C2.Element {
+            let count = leftChildren.count + rightChildren.count
+            let children = [AnySequence(leftChildren), AnySequence(rightChildren)].joined()
+
+            if count <= maxChild {
+                self.init(children)
+            } else {
+                let split = count / 2
+                let left = Node(children.prefix(split))
+                let right = Node(children.dropFirst(split))
+                self.init([left, right])
+            }
         }
 
         convenience init<S>(_ seq: S) where S: Collection, S.Element == Node {
@@ -135,6 +77,54 @@ extension Rope {
                 return count >= minLeaf
             } else {
                 return count >= minChild
+            }
+        }
+
+        // Mutates self if self is a leaf. In that situation,
+        // self must be unique by this point.
+        func concatinate(_ other: Node) -> Node {
+            let h1 = height
+            let h2 = other.height
+
+            if h1 < h2 {
+                if h1 == h2 - 1 && atLeastMinSize {
+                    return Node(children: [self], mergedWith: other.children)
+                }
+
+                // TODO: xi has right.children[0].clone(). Is that necessary here?
+                // I don't think so because I don't think it's possible for concatinate
+                // to modify other.children[0].
+                let new = concatinate(other.children[0])
+                if new.height == h2 - 1 {
+                    return Node(children: [new], mergedWith: other.children.dropFirst())
+                } else {
+                    return Node(children: new.children, mergedWith: other.children.dropFirst())
+                }
+            } else if h1 == h2 {
+                if atLeastMinSize && other.atLeastMinSize {
+                    return Node([self, other])
+                } else if h1 == 0 {
+                    // Mutates self, but we only call concatinate with a unique self,
+                    // so we should be fine.
+                    return merge(withLeaf: other)
+                } else {
+                    return Node(children: children, mergedWith: other.children)
+                }
+            } else {
+                if h2 == h1 - 1 && other.atLeastMinSize {
+                    return Node(children: children, mergedWith: [other])
+                }
+
+                // Because concatinate is mutating, we need to make sure that
+                // children.last is unique before calling.
+                ensureUniqueChild(at: children.count - 1)
+
+                let new = children[children.count - 1].concatinate(other)
+                if new.height == h1 - 1 {
+                    return Node(children: children.dropLast(), mergedWith: [new])
+                } else {
+                    return Node(children: children.dropLast(), mergedWith: new.children)
+                }
             }
         }
 
@@ -191,10 +181,24 @@ extension Rope {
         }
 
         func clone() -> Node {
-            if isLeaf {
-                return Node(string)
+            // All properties are value types, so it's sufficient
+            // to just create a new Node instance.
+            return Node(height, count, children, string)
+        }
+
+        // Can mutate self. Must be called with a unique self.
+        func merge(withLeaf other: Node) -> Node {
+            assert(isLeaf && other.isLeaf)
+
+            if atLeastMinSize && other.atLeastMinSize {
+                return Node([self, other])
+            }
+
+            let newLeaf = pushLeaf(possiblySplitting: other.string)
+            if let newLeaf {
+                return Node([self, newLeaf])
             } else {
-                return Node(children)
+                return self
             }
         }
 

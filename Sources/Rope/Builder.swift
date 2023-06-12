@@ -17,8 +17,8 @@ extension Rope {
 
             while true {
                 if stack.last != nil && stack.last!.last!.height < n.height {
-                    // Can mutate the result of calling pop().
-                    n = Node.concat(pop(), n)
+                    // TODO: Can mutate the result of calling pop().
+                    n = pop().concatinate(n)
                 } else if stack.last != nil && stack.last!.last!.height == n.height {
                     if stack.last!.last!.atLeastMinSize && n.atLeastMinSize {
                         stack[stack.count - 1].append(n)
@@ -99,8 +99,8 @@ extension Rope {
             } else {
                 var n = pop()
                 while !stack.isEmpty {
-                    // can mutate the result of calling pop
-                    n = Node.concat(pop(), n)
+                    // TODO: can mutate the result of calling pop
+                    n = pop().concatinate(n)
                 }
 
                 return n
