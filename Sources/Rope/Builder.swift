@@ -18,14 +18,20 @@ extension Rope {
             while true {
                 if stack.last != nil && stack.last!.last!.height < n.height {
                     var popped = pop()
-                    ensureUnique(&popped)
+                    if !isKnownUniquelyReferenced(&popped) {
+                        popped = popped.clone()
+                    }
+
                     n = popped.concatinate(n)
                 } else if stack.last != nil && stack.last!.last!.height == n.height {
                     if stack.last!.last!.atLeastMinSize && n.atLeastMinSize {
                         stack[stack.count - 1].append(n)
                     } else if n.height == 0 {
                         // pushLeaf(possiblySplitting:) mutates
-                        ensureUnique(&stack[stack.count - 1][stack[stack.count - 1].count - 1])
+                        if !isKnownUniquelyReferenced(&stack[stack.count - 1][stack[stack.count - 1].count - 1]) {
+                            stack[stack.count - 1][stack[stack.count - 1].count - 1] = stack[stack.count - 1][stack[stack.count - 1].count - 1].clone()
+                        }
+
                         let newLeaf = stack[stack.count - 1][stack[stack.count - 1].count - 1].pushLeaf(possiblySplitting: n.string)
                         if let newLeaf {
                             stack[stack.count - 1].append(newLeaf)
@@ -100,17 +106,14 @@ extension Rope {
                 var n = pop()
                 while !stack.isEmpty {
                     var popped = pop()
-                    ensureUnique(&popped)
+                    if !isKnownUniquelyReferenced(&popped) {
+                        popped = popped.clone()
+                    }
+
                     n = popped.concatinate(n)
                 }
 
                 return n
-            }
-        }
-
-        func ensureUnique(_ node: inout Node) {
-            if !isKnownUniquelyReferenced(&node) {
-                node = node.clone()
             }
         }
     }

@@ -94,6 +94,9 @@ extension Rope {
                 // TODO: xi has right.children[0].clone(). Is that necessary here?
                 // I don't think so because I don't think it's possible for concatinate
                 // to modify other.children[0].
+                //
+                // Concatinate mutates, but self is already guaranteed to be unique at
+                // this point.
                 let new = concatinate(other.children[0])
                 if new.height == h2 - 1 {
                     return Node(children: [new], mergedWith: other.children.dropFirst())
@@ -117,7 +120,11 @@ extension Rope {
 
                 // Because concatinate is mutating, we need to make sure that
                 // children.last is unique before calling.
-                ensureUniqueChild(at: children.count - 1)
+                //
+                // concatinate only mutates leaf nodes
+                if !isKnownUniquelyReferenced(&children[children.count-1]) && children[children.count-1].isLeaf {
+                    children[children.count-1] = children[children.count-1].clone()
+                }
 
                 let new = children[children.count - 1].concatinate(other)
                 if new.height == h1 - 1 {
@@ -192,7 +199,10 @@ extension Rope {
                         i += 1
                     }
 
-                    ensureUniqueChild(at: i)
+                    if !isKnownUniquelyReferenced(&children[i]) {
+                        children[i] = children[i].clone()
+                    }
+
                     if let node = children[i].insert(c, at: pos) {
                         children[i] = node
                     }
@@ -206,12 +216,6 @@ extension Rope {
                     let node = Node([left, right])
                     return node.insert(c, at: position) ?? node
                 }
-            }
-        }
-
-        func ensureUniqueChild(at index: Int) {
-            if !isKnownUniquelyReferenced(&children[index]) {
-                children[index] = children[index].clone()
             }
         }
 

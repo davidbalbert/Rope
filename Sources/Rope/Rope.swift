@@ -57,7 +57,9 @@ struct Rope {
 
     mutating func insert(_ c: Character, at i: Index) {
         i.validate(for: root)
-        ensureUniqueRoot()
+        if !isKnownUniquelyReferenced(&root) {
+            root = root.clone()
+        }
 
         if let node = root.insert(c, at: i.position) {
             root = node
@@ -72,10 +74,4 @@ struct Rope {
     //         root = node
     //     }
     // }
-
-    mutating func ensureUniqueRoot() {
-        if !isKnownUniquelyReferenced(&root) {
-            root = root.clone()
-        }
-    }
 }
