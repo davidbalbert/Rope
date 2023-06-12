@@ -69,9 +69,6 @@ extension Rope {
             }
 
             let newLeaf = left.pushLeaf(possiblySplitting: right.string)
-            // TODO: find a better way to do this
-            left.count = left.string.count
-
             if let newLeaf {
                 return Node([left, newLeaf])
             } else {
@@ -198,12 +195,14 @@ extension Rope {
             string += s
 
             if string.count <= maxLeaf {
+                count = string.count
                 return nil
             } else {
                 // TODO: split at newline boundary if we can
                 let splitPoint = string.index(string.startIndex, offsetBy: Swift.max(minLeaf, string.count - maxLeaf))
                 let split = String(string[splitPoint...])
                 string = String(string[..<splitPoint])
+                count = string.count
                 return Node(split)
             }
         }

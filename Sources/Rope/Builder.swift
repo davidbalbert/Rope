@@ -23,8 +23,6 @@ extension Rope {
                         stack[stack.count - 1].append(n)
                     } else if n.height == 0 {
                         let newLeaf = stack[stack.count - 1][stack[stack.count - 1].count - 1].pushLeaf(possiblySplitting: n.string)
-                        // TODO: find a better place to do this
-                        stack[stack.count - 1][stack[stack.count - 1].count - 1].count = stack[stack.count - 1][stack[stack.count - 1].count - 1].string.count
                         if let newLeaf {
                             stack[stack.count - 1].append(newLeaf)
                         }
