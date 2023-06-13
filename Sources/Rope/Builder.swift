@@ -18,7 +18,7 @@ extension Rope {
             while true {
                 if stack.last != nil && stack.last!.last!.height < n.height {
                     var popped = pop()
-                    if !isKnownUniquelyReferenced(&popped) {
+                    if !isKnownUniquelyReferenced(&popped) && popped.isLeaf {
                         popped = popped.clone()
                     }
 
@@ -106,7 +106,7 @@ extension Rope {
                 var n = pop()
                 while !stack.isEmpty {
                     var popped = pop()
-                    if !isKnownUniquelyReferenced(&popped) {
+                    if !isKnownUniquelyReferenced(&popped) && popped.isLeaf {
                         popped = popped.clone()
                     }
 
