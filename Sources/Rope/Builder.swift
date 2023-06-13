@@ -27,12 +27,14 @@ extension Rope {
                     if stack.last!.last!.atLeastMinSize && n.atLeastMinSize {
                         stack[stack.count - 1].append(n)
                     } else if n.height == 0 {
-                        // pushLeaf(possiblySplitting:) mutates
-                        if !isKnownUniquelyReferenced(&stack[stack.count - 1][stack[stack.count - 1].count - 1]) {
-                            stack[stack.count - 1][stack[stack.count - 1].count - 1] = stack[stack.count - 1][stack[stack.count - 1].count - 1].clone()
-                        }
+                        let newLeaf = { (lastLeaf: inout Node) -> Node? in
+                            if !isKnownUniquelyReferenced(&lastLeaf) {
+                                lastLeaf = lastLeaf.clone()
+                            }
 
-                        let newLeaf = stack[stack.count - 1][stack[stack.count - 1].count - 1].pushLeaf(possiblySplitting: n.string)
+                            return lastLeaf.pushLeaf(possiblySplitting: n.string)
+                        }(&stack[stack.count - 1][stack[stack.count - 1].count - 1])
+
                         if let newLeaf {
                             stack[stack.count - 1].append(newLeaf)
                         }
