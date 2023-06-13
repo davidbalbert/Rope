@@ -166,16 +166,14 @@ extension Rope: BidirectionalCollection {
 
 extension Rope: RangeReplaceableCollection {
     mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, Character == C.Element {
-        replaceSubrange(subrange, with: String(newElements))
-    }
-
-    mutating func replaceSubrange(_ subrange: Range<Index>, with string: String) {
         subrange.lowerBound.validate(for: root)
         subrange.upperBound.validate(for: root)
 
         var b = Builder()
         b.push(root, slicedBy: Range(startIndex..<subrange.lowerBound))
-        b.push(string: string)
+        // If newElements is a string, this will call Builder.push(string: String) rather
+        // than Builder.push<S: Collection>(string: S).
+        b.push(string: newElements)
         b.push(root, slicedBy: Range(subrange.upperBound..<endIndex))
         self.root = b.build()
     }
