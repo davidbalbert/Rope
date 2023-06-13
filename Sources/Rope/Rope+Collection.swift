@@ -97,6 +97,18 @@ extension Rope: BidirectionalCollection {
         Index(endOf: self)
     }
 
+    // TODO: we should also overwrite the default implementation of
+    // the index(_:offsetBy:) and formIndex(_:offsetBy:) family of
+    // methods. In most cases, it'll be faster to traverse the tree
+    // from the top rather than iterating by position. A decent
+    // place to start might be iterate if we're within the same
+    // leaf, and otherwise just use the NodeIndex(offsetBy:in:)
+    // initializer.
+    //
+    // Honestly, we should probably audit the entirety of
+    // Collection and BidirectionalCollection. I bet we'll want
+    // to override most things.
+
     func index(before i: Index) -> Index {
         i.validate(for: root)
         var i = i
@@ -149,5 +161,27 @@ extension Rope: BidirectionalCollection {
         var b = Builder()
         b.push(root, slicedBy: offsetRange)
         return Rope(b.build())
+    }
+}
+
+extension Rope: RangeReplaceableCollection {
+    mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, Character == C.Element {
+        replaceSubrange(subrange, with: String(newElements))
+    }
+
+    mutating func replaceSubrange(_ subrange: Range<Index>, with string: String) {
+        subrange.lowerBound.validate(for: root)
+        subrange.upperBound.validate(for: root)
+
+        var b = Builder()
+        b.push(root, slicedBy: Range(startIndex..<subrange.lowerBound))
+        b.push(string: string)
+        b.push(root, slicedBy: Range(subrange.upperBound..<endIndex))
+        self.root = b.build()
+    }
+
+    // override the default behavior
+    mutating func reserveCapacity(_ n: Int) {
+        // no-op
     }
 }

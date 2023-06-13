@@ -90,4 +90,38 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(710_000, slice.count)
         XCTAssertEqual(String(repeating: "a", count: 710_000), String(slice))
     }
+
+    func testReplaceSubrangeFullRange() {
+        var r = Rope("abc")
+        r.replaceSubrange(r.startIndex..<r.endIndex, with: "def")
+        XCTAssertEqual("def", String(r))
+    }
+
+    func testReplaceSubrangePrefix() {
+        var r = Rope("Hello, world!")
+        r.replaceSubrange(r.startIndex..<r.index(r.startIndex, offsetBy: 5), with: "Goodbye")
+        XCTAssertEqual("Goodbye, world!", String(r))
+    }
+
+    func testReplaceSubrangeSuffix() {
+        var r = Rope("Hello, world!")
+        r.replaceSubrange(r.index(r.startIndex, offsetBy: 7)..<r.endIndex, with: "Moon?")
+        XCTAssertEqual("Hello, Moon?", String(r))
+    }
+
+    func testReplaceSubrangeInternal() {
+        var r = Rope("Hello, world!")
+        r.replaceSubrange(r.index(r.startIndex, offsetBy: 7)..<r.index(r.endIndex, offsetBy: -1), with: "Earth")
+        XCTAssertEqual("Hello, Earth!", String(r))
+    }
+
+    func testReplaceSubrangeVeryLong() {
+        var r = Rope(String(repeating: "a", count: 1_000_000))
+        let start = r.index(r.startIndex, offsetBy: 40_000)
+        let end = r.index(r.startIndex, offsetBy: 750_000)
+
+        r.replaceSubrange(start..<end, with: String(repeating: "b", count: 710_000))
+        XCTAssertEqual(1_000_000, r.count)
+        XCTAssertEqual(String(repeating: "a", count: 40_000) + String(repeating: "b", count: 710_000) + String(repeating: "a", count: 250_000), String(r))
+    }
 }

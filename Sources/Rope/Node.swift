@@ -159,6 +159,8 @@ extension Rope {
         func pushLeaf(possiblySplitting s: String) -> Node? {
             assert(isLeaf)
 
+            mutationCount &+= 1
+
             string += s
 
             if string.count <= maxLeaf {
