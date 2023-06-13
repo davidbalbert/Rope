@@ -22,148 +22,49 @@ extension Rope {
     }
 
     struct Index {
-        weak var root: Node?
-        let mutationCount: Int
-        var position: Int
-        var path: [PathElement]
-
-        var current: Node // Root if we're at the end of the rope. Otherwise, a leaf.
-        var idx: String.Index? // nil if we're at the end of the rope.
-
+        var nodeIndex: NodeIndex
 
         init(startOf rope: Rope) {
-            self.root = rope.root
-            self.mutationCount = rope.root.mutationCount
-            self.position = 0
-            self.path = []
-
-            var node = rope.root
-            while !node.isLeaf {
-                path.append(PathElement(node: node, slot: 0))
-                node = node.children[0]
-            }
-
-            self.current = node
-            self.idx = node.string.startIndex
+            self.nodeIndex = NodeIndex(startOf: rope.root)
         }
 
         init(endOf rope: Rope) {
-            self.root = rope.root
-            self.position = rope.count
-            self.mutationCount = rope.root.mutationCount
-            self.path = []
-            self.current = rope.root
-            self.idx = nil
+            self.nodeIndex = NodeIndex(endOf: rope.root)
         }
 
-        var isAtEnd: Bool {
-            return idx == nil
-        }
-
-        var value: Character? {
-            guard let idx else { return nil }
-            return current.string[idx]
+        init(offsetBy offset: Int, in rope: Rope) {
+            self.nodeIndex = NodeIndex(offsetBy: offset, in: rope.root)
         }
 
         mutating func formSuccessor() {
-            guard var idx else {
-                preconditionFailure("Cannot advance past endIndex")
-            }
-
-            idx = current.string.index(after: idx)
-
-            if idx < current.string.endIndex {
-                self.idx = idx
-            } else {
-                while let el = path.last, el.slot == el.node.children.count - 1 {
-                    path.removeLast()
-                }
-
-                guard !path.isEmpty else {
-                    self.idx = nil
-                    self.current = root! // assume root is not nil because Rope.index(after:) called validate(for:)
-                    return
-                }
-
-                path[path.count - 1].slot += 1
-                var node = path[path.count - 1].child
-
-                while !node.isLeaf {
-                    path.append(PathElement(node: node, slot: 0))
-                    node = node.children[0]
-                }
-
-                self.current = node
-                self.idx = node.string.startIndex
-            }
-
-            self.position += 1
+            self.nodeIndex.formSuccessor()
         }
 
         mutating func formPredecessor() {
-            if idx == current.string.startIndex && path.allSatisfy({ $0.slot == 0 }) {
-                preconditionFailure("Cannot go below startIndex")
-            }
+            self.nodeIndex.formPredecessor()
+        }
 
-            var i: String.Index
-            if let idx {
-                i = idx
-            } else {
-                // we're at endIndex
-                var node = current // current == root in this situation
-                while !node.isLeaf {
-                    path.append(PathElement(node: node, slot: node.children.count - 1))
-                    node = node.children[node.children.count - 1]
-                }
-
-                current = node
-                i = node.string.endIndex
-            }
-
-            if i != current.string.startIndex {
-                self.idx = current.string.index(before: i)
-            } else {
-                while let el = path.last, el.slot == 0 {
-                    path.removeLast()
-                }
-
-                path[path.count - 1].slot -= 1
-                var node = path[path.count - 1].child
-
-                while !node.isLeaf {
-                    path.append(PathElement(node: node, slot: node.children.count - 1))
-                    node = node.children[node.children.count - 1]
-                }
-
-                self.current = node
-                self.idx = node.string.index(before: node.string.endIndex)
-            }
-
-            position -= 1
+        var value: Character? {
+            nodeIndex.value
         }
 
         func validate(for root: Node) {
-            precondition(self.root === root)
-            precondition(self.mutationCount == root.mutationCount)
+            nodeIndex.validate(for: root)
         }
 
-        func validate(_ other: Index) {
-            precondition(root === other.root && root != nil)
-            precondition(mutationCount == root!.mutationCount)
-            precondition(mutationCount == other.mutationCount)
+        func validate(_ other: NodeIndex) {
+            nodeIndex.validate(other)
         }
     }
 }
 
 extension Rope.Index: Comparable {
     static func < (left: Rope.Index, right: Rope.Index) -> Bool {
-        left.validate(right)
-        return left.position < right.position
+        left.nodeIndex < right.nodeIndex        
     }
 
-    static func == (lhs: Rope.Index, rhs: Rope.Index) -> Bool {
-        lhs.validate(rhs)
-        return lhs.position == rhs.position
+    static func == (left: Rope.Index, right: Rope.Index) -> Bool {
+        left.nodeIndex == right.nodeIndex
     }
 }
 
@@ -222,9 +123,31 @@ extension Rope: BidirectionalCollection {
 
     subscript(index: Index) -> Character {
         index.validate(for: root)
-        precondition(!index.isAtEnd, "Index out of bounds")
-
         return index.value!
     }
-}
 
+    subscript(offset: Int) -> Character {
+        // Index(offsetBy:in:) will let you create an index that's == endIndex,
+        // but we don't want to allow that for subscripting.
+        precondition(offset < count, "Index out of bounds")
+        return Index(offsetBy: offset, in: self).value!
+    }
+
+    subscript(bounds: Range<Index>) -> Rope {
+        bounds.lowerBound.validate(for: root)
+        bounds.upperBound.validate(for: root)
+
+        var b = Builder()
+        b.push(root, slicedBy: Range(bounds))
+        return Rope(b.build())
+    }
+
+    subscript(offsetRange: Range<Int>) -> Rope {
+        precondition(offsetRange.lowerBound >= 0, "Index out of bounds")
+        precondition(offsetRange.upperBound <= count, "Index out of bounds")
+
+        var b = Builder()
+        b.push(root, slicedBy: offsetRange)
+        return Rope(b.build())
+    }
+}

@@ -65,8 +65,43 @@ extension Rope {
             }
         }
 
+        mutating func push(_ node: Node, slicedBy range: Range<Int>) {
+            if range.isEmpty {
+                return
+            }
+
+            if range == 0..<node.count {
+                push(node)
+                return
+            }
+
+            if node.isLeaf {
+                push(leaf: node.string, slicedBy: range)
+            } else {
+                var offset = 0
+                for child in node.children {
+                    if range.upperBound <= offset {
+                        break
+                    }
+
+                    let childRange = 0..<child.count
+                    let intersection = childRange.clamped(to: range.offset(by: -offset))
+                    push(child, slicedBy: intersection)
+                    offset += child.count
+                }
+            }
+
+        }
+
         mutating func push(leaf: String) {
             push(Node(leaf))
+        }
+
+        mutating func push(leaf: String, slicedBy range: Range<Int>) {
+            let start = leaf.index(leaf.startIndex, offsetBy: range.lowerBound)
+            let end = leaf.index(leaf.startIndex, offsetBy: range.upperBound)
+
+            push(leaf: String(leaf[start..<end]))
         }
 
         mutating func push(string s: String) {

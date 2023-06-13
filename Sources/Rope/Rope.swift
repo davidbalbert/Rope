@@ -61,7 +61,7 @@ struct Rope {
             root = root.clone()
         }
 
-        if let node = root.insert(c, at: i.position) {
+        if let node = root.insert(c, at: i.nodeIndex.position) {
             root = node
         }
     }

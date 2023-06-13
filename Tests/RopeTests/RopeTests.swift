@@ -70,4 +70,24 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(3, r2.count)
         XCTAssertEqual("def", String(r2))
     }
+
+    func testSlice() {
+        let r = Rope(String(repeating: "a", count: 5000))
+        let start = r.index(r.startIndex, offsetBy: 1000)
+        let end = r.index(r.startIndex, offsetBy: 2000)
+
+        let slice = r[start..<end]
+        XCTAssertEqual(1000, slice.count)
+        XCTAssertEqual(String(repeating: "a", count: 1000), String(slice))
+    }
+
+    func testSliceHuge() {
+        let r = Rope(String(repeating: "a", count: 1_000_000))
+        let start = r.index(r.startIndex, offsetBy: 40_000)
+        let end = r.index(r.startIndex, offsetBy: 750_000)
+
+        let slice = r[start..<end]
+        XCTAssertEqual(710_000, slice.count)
+        XCTAssertEqual(String(repeating: "a", count: 710_000), String(slice))
+    }
 }

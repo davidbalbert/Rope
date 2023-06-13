@@ -15,6 +15,10 @@ extension Rope {
         var children: [Rope.Node]
         var string: String // always empty for internal nodes
 
+        var isEmpty: Bool {
+            count == 0
+        }
+
         init (_ height: Int, _ count: Int, _ children: [Node], _ string: String) {
             self.height = height
             self.mutationCount = 0
