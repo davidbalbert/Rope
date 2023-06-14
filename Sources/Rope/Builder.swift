@@ -123,10 +123,6 @@ extension Rope {
             }
         }
 
-        mutating func push<S>(string s: S) where S: Collection, S.Element == Character {
-            push(string: String(s))
-        }
-
         mutating func pop() -> Node {
             let nodes = stack.removeLast()
             if nodes.count == 1 {

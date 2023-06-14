@@ -43,7 +43,7 @@ struct Rope {
 
     public init<S>(_ string: S) where S: Collection, S.Element == Character {
         var b = Builder()
-        b.push(string: string)
+        b.push(string: String(string))
         self.init(b.build())
     }
 
@@ -51,27 +51,7 @@ struct Rope {
         return root.count
     }
 
-    mutating func append(_ c: Character) {
-        insert(c, at: endIndex)
+    mutating func append(_ string: String) {
+        append(contentsOf: string)
     }
-
-    mutating func insert(_ c: Character, at i: Index) {
-        i.validate(for: root)
-        if !isKnownUniquelyReferenced(&root) {
-            root = root.clone()
-        }
-
-        if let node = root.insert(c, at: i.nodeIndex.position) {
-            root = node
-        }
-    }
-
-    // mutating func insert<S>(contentsOf newElements: S, at i: Index) where S: Collection, S.Element == Character {
-    //     i.validate(for: root)
-    //     ensureUniqueRoot()
-
-    //     if let node = root.insert(contentsOf: newElements, at: i.position) {
-    //         root = node
-    //     }
-    // }
 }

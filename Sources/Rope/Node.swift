@@ -176,55 +176,6 @@ extension Rope {
             }
         }
 
-        // Mutates self. Self must be unique at this point
-        func insert(_ c: Character, at position: Int) -> Node? {
-            mutationCount &+= 1
-
-            if isLeaf {
-                if count < maxLeaf {
-                    string.insert(c, at: string.index(string.startIndex, offsetBy: position))
-                    count += 1
-                    return nil
-                } else {
-                    let mid = string.index(string.startIndex, offsetBy: minLeaf+1)
-                    let left = Rope.Node(String(string[..<mid]))
-                    let right = Rope.Node(String(string[mid...]))
-                    let node = Rope.Node(1, count, [left, right], "")
-                    return node.insert(c, at: position) ?? node
-                }
-            } else {
-                if count < maxChild {
-                    // find the child that contains the position
-                    var pos = position
-                    var i = 0
-
-                    // we assume that the position is valid, so we don't check to see
-                    // if we go past the end of the children.
-                    while pos >= children[i].count {
-                        pos -= children[i].count
-                        i += 1
-                    }
-
-                    if !isKnownUniquelyReferenced(&children[i]) {
-                        children[i] = children[i].clone()
-                    }
-
-                    if let node = children[i].insert(c, at: pos) {
-                        children[i] = node
-                    }
-
-                    count += 1
-                    return nil
-                } else {
-                    let mid = minChild
-                    let left = Node(children[..<mid])
-                    let right = Node(children[mid...])
-                    let node = Node([left, right])
-                    return node.insert(c, at: position) ?? node
-                }
-            }
-        }
-
         func clone() -> Node {
             // All properties are value types, so it's sufficient
             // to just create a new Node instance.

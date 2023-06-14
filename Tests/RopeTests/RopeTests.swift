@@ -124,4 +124,60 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(1_000_000, r.count)
         XCTAssertEqual(String(repeating: "a", count: 40_000) + String(repeating: "b", count: 710_000) + String(repeating: "a", count: 250_000), String(r))
     }
+
+    func testAppendContentsOfInPlace() {
+        var r = Rope("abc")
+        r.append(contentsOf: "def")
+        XCTAssertEqual("abcdef", String(r))
+        XCTAssertEqual(1, r.root.mutationCount)
+        XCTAssert(isKnownUniquelyReferenced(&r.root))
+    }
+
+    func testAppendContentsOfCOW() {
+        var r1 = Rope("abc")
+
+        XCTAssert(isKnownUniquelyReferenced(&r1.root))
+
+        var r2 = r1
+
+        XCTAssertFalse(isKnownUniquelyReferenced(&r1.root))
+        XCTAssertFalse(isKnownUniquelyReferenced(&r2.root))
+
+        r1.append(contentsOf: "def")
+        XCTAssertEqual("abcdef", String(r1))
+        XCTAssertEqual("abc", String(r2))
+        XCTAssertEqual(1, r1.root.mutationCount)
+        XCTAssertEqual(0, r2.root.mutationCount)
+
+        XCTAssert(isKnownUniquelyReferenced(&r1.root))
+        XCTAssert(isKnownUniquelyReferenced(&r2.root))
+    }
+
+    func testAppendInPlace() {
+        var r = Rope("abc")
+        r.append("def")
+        XCTAssertEqual("abcdef", String(r))
+        XCTAssertEqual(1, r.root.mutationCount)
+        XCTAssert(isKnownUniquelyReferenced(&r.root))
+    }
+
+    func testAppendCOW() {
+        var r1 = Rope("abc")
+
+        XCTAssert(isKnownUniquelyReferenced(&r1.root))
+
+        var r2 = r1
+
+        XCTAssertFalse(isKnownUniquelyReferenced(&r1.root))
+        XCTAssertFalse(isKnownUniquelyReferenced(&r2.root))
+
+        r1.append("def")
+        XCTAssertEqual("abcdef", String(r1))
+        XCTAssertEqual("abc", String(r2))
+        XCTAssertEqual(1, r1.root.mutationCount)
+        XCTAssertEqual(0, r2.root.mutationCount)
+
+        XCTAssert(isKnownUniquelyReferenced(&r1.root))
+        XCTAssert(isKnownUniquelyReferenced(&r2.root))
+    }
 }

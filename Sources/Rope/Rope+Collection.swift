@@ -165,16 +165,22 @@ extension Rope: BidirectionalCollection {
 }
 
 extension Rope: RangeReplaceableCollection {
-    mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, Character == C.Element {
+    mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, C.Element == Character {
         subrange.lowerBound.validate(for: root)
         subrange.upperBound.validate(for: root)
 
         var b = Builder()
         b.push(root, slicedBy: Range(startIndex..<subrange.lowerBound))
-        // If newElements is a string, this will call Builder.push(string: String) rather
-        // than Builder.push<S: Collection>(string: S).
-        b.push(string: newElements)
+        b.push(string: String(newElements))
         b.push(root, slicedBy: Range(subrange.upperBound..<endIndex))
+        self.root = b.build()
+    }
+
+    // The deafult implementation calls append(_:) in a loop. This should be faster.
+    mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Character {
+        var b = Builder()
+        b.push(root)
+        b.push(string: String(newElements))
         self.root = b.build()
     }
 
