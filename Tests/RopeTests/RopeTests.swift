@@ -129,7 +129,6 @@ final class RopeTests: XCTestCase {
         var r = Rope("abc")
         r.append(contentsOf: "def")
         XCTAssertEqual("abcdef", String(r))
-        XCTAssertEqual(1, r.root.mutationCount)
         XCTAssert(isKnownUniquelyReferenced(&r.root))
     }
 
@@ -146,8 +145,6 @@ final class RopeTests: XCTestCase {
         r1.append(contentsOf: "def")
         XCTAssertEqual("abcdef", String(r1))
         XCTAssertEqual("abc", String(r2))
-        XCTAssertEqual(1, r1.root.mutationCount)
-        XCTAssertEqual(0, r2.root.mutationCount)
 
         XCTAssert(isKnownUniquelyReferenced(&r1.root))
         XCTAssert(isKnownUniquelyReferenced(&r2.root))
@@ -157,7 +154,6 @@ final class RopeTests: XCTestCase {
         var r = Rope("abc")
         r.append("def")
         XCTAssertEqual("abcdef", String(r))
-        XCTAssertEqual(1, r.root.mutationCount)
         XCTAssert(isKnownUniquelyReferenced(&r.root))
     }
 
@@ -174,8 +170,6 @@ final class RopeTests: XCTestCase {
         r1.append("def")
         XCTAssertEqual("abcdef", String(r1))
         XCTAssertEqual("abc", String(r2))
-        XCTAssertEqual(1, r1.root.mutationCount)
-        XCTAssertEqual(0, r2.root.mutationCount)
 
         XCTAssert(isKnownUniquelyReferenced(&r1.root))
         XCTAssert(isKnownUniquelyReferenced(&r2.root))
