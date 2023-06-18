@@ -21,9 +21,12 @@ struct Rope {
     var root: Node
 
     static func + (_ left: Rope, _ right: Rope) -> Rope {
+        var l = left.root
+        var r = right.root
+
         var b = Builder()
-        b.push(left.root)
-        b.push(right.root)
+        b.push(&l)
+        b.push(&r)
         return Rope(b.build())
     }
 

@@ -145,12 +145,15 @@ extension Rope: BidirectionalCollection {
         return Index(offsetBy: offset, in: self).value!
     }
 
+    // Does not actually mutate
     subscript(bounds: Range<Index>) -> Rope {
         bounds.lowerBound.validate(for: root)
         bounds.upperBound.validate(for: root)
 
+        var r = root
+
         var b = Builder()
-        b.push(root, slicedBy: Range(bounds))
+        b.push(&r, slicedBy: Range(bounds))
         return Rope(b.build())
     }
 
@@ -158,8 +161,10 @@ extension Rope: BidirectionalCollection {
         precondition(offsetRange.lowerBound >= 0, "Index out of bounds")
         precondition(offsetRange.upperBound <= count, "Index out of bounds")
 
+        var r = root
+
         var b = Builder()
-        b.push(root, slicedBy: offsetRange)
+        b.push(&r, slicedBy: offsetRange)
         return Rope(b.build())
     }
 }
@@ -170,16 +175,16 @@ extension Rope: RangeReplaceableCollection {
         subrange.upperBound.validate(for: root)
 
         var b = Builder()
-        b.push(root, slicedBy: Range(startIndex..<subrange.lowerBound))
+        b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
         b.push(string: String(newElements))
-        b.push(root, slicedBy: Range(subrange.upperBound..<endIndex))
+        b.push(&root, slicedBy: Range(subrange.upperBound..<endIndex))
         self.root = b.build()
     }
 
     // The deafult implementation calls append(_:) in a loop. This should be faster.
     mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Character {
         var b = Builder()
-        b.push(root)
+        b.push(&root)
         b.push(string: String(newElements))
         self.root = b.build()
     }

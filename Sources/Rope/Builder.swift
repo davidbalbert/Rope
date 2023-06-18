@@ -10,46 +10,52 @@ import Foundation
 extension Rope {
     struct Builder {
         // the inner array always has at least one element
-        var stack: [[Node]] = []
+        var stack: [[(Node, Bool)]] = []
 
-        mutating func push(_ node: Node) {
+        mutating func push(_ node: inout Node) {
+            var isUnique = isKnownUniquelyReferenced(&node)
             var n = node
 
             while true {
-                if stack.last != nil && stack.last!.last!.height < n.height {
-                    var popped = pop()
-                    if !isKnownUniquelyReferenced(&popped) && popped.isLeaf {
+                if stack.last != nil && stack.last!.last!.0.height < n.height {
+                    // TODO: can I destructure instead? I can if `var (popped, isUnique) = pop()` mutates isUnique rather than shadowing it.
+                    let t = pop()
+                    var popped = t.0
+                    isUnique = t.1
+
+                    if !isUnique && popped.isLeaf {
                         popped = popped.clone()
                     }
 
                     n = popped.concatinate(n)
-                } else if stack.last != nil && stack.last!.last!.height == n.height {
-                    if stack.last!.last!.atLeastMinSize && n.atLeastMinSize {
-                        stack[stack.count - 1].append(n)
+                    isUnique = true
+                } else if stack.last != nil && stack.last!.last!.0.height == n.height {
+                    if stack.last!.last!.0.atLeastMinSize && n.atLeastMinSize {
+                        stack[stack.count - 1].append((n, isUnique))
                     } else if n.height == 0 {
-                        let newLeaf = { (lastLeaf: inout Node) -> Node? in
-                            if !isKnownUniquelyReferenced(&lastLeaf) {
-                                lastLeaf = lastLeaf.clone()
-                            }
+                        var (lastLeaf, isLeafUnique) = stack[stack.count - 1][stack[stack.count - 1].count - 1]
 
-                            return lastLeaf.pushLeaf(possiblySplitting: n.string)
-                        }(&stack[stack.count - 1][stack[stack.count - 1].count - 1])
-
-                        if let newLeaf {
-                            stack[stack.count - 1].append(newLeaf)
+                        if !isLeafUnique {
+                            lastLeaf = lastLeaf.clone()
+                            stack[stack.count - 1][stack[stack.count - 1].count - 1] = (lastLeaf, true)
+                        }
+                        
+                        if let newLeaf = lastLeaf.pushLeaf(possiblySplitting: n.string) {
+                            assert(newLeaf.atLeastMinSize)
+                            stack[stack.count - 1].append((newLeaf, true))
                         }
                     } else {
                         let last = stack[stack.count - 1].removeLast()
-                        let c1 = last.children
+                        let c1 = last.0.children
                         let c2 = n.children
                         let count = c1.count + c2.count
                         if count <= maxChild {
-                            stack[stack.count - 1].append(Node(c1 + c2))
+                            stack[stack.count - 1].append((Node(c1 + c2), true))
                         } else {
                             let split = count / 2
                             let children = [c1, c2].joined()
-                            stack[stack.count - 1].append(Node(children.prefix(split)))
-                            stack[stack.count - 1].append(Node(children.dropFirst(split)))
+                            stack[stack.count - 1].append((Node(children.prefix(split)), true))
+                            stack[stack.count - 1].append((Node(children.dropFirst(split)), true))
                         }
                     }
 
@@ -57,21 +63,24 @@ extension Rope {
                         break
                     }
 
-                    n = pop()
+                    // TODO: maybe this could be destructuring like above
+                    let popped = pop()
+                    n = popped.0
+                    isUnique = popped.1
                 } else {
-                    stack.append([n])
+                    stack.append([(n, isUnique)])
                     break
                 }
             }
         }
 
-        mutating func push(_ node: Node, slicedBy range: Range<Int>) {
+        mutating func push(_ node: inout Node, slicedBy range: Range<Int>) {
             if range.isEmpty {
                 return
             }
 
             if range == 0..<node.count {
-                push(node)
+                push(&node)
                 return
             }
 
@@ -79,22 +88,22 @@ extension Rope {
                 push(leaf: node.string, slicedBy: range)
             } else {
                 var offset = 0
-                for child in node.children {
+                for i in 0..<node.children.count {
                     if range.upperBound <= offset {
                         break
                     }
 
-                    let childRange = 0..<child.count
+                    let childRange = 0..<node.children[i].count
                     let intersection = childRange.clamped(to: range.offset(by: -offset))
-                    push(child, slicedBy: intersection)
-                    offset += child.count
+                    push(&node.children[i], slicedBy: intersection)
+                    offset += node.children[i].count
                 }
             }
-
         }
 
         mutating func push(leaf: String) {
-            push(Node(leaf))
+            var n = Node(leaf)
+            push(&n)
         }
 
         mutating func push(leaf: String, slicedBy range: Range<Int>) {
@@ -123,12 +132,13 @@ extension Rope {
             }
         }
 
-        mutating func pop() -> Node {
+        mutating func pop() -> (Node, Bool) {
             let nodes = stack.removeLast()
             if nodes.count == 1 {
                 return nodes[0]
             } else {
-                return Node(nodes)
+                // TODO: I'm not sure if this is correct.
+                return (Node(nodes.map(\.0)), true)
             }
         }
 
@@ -136,10 +146,10 @@ extension Rope {
             if stack.isEmpty {
                 return Node()
             } else {
-                var n = pop()
+                var n = pop().0
                 while !stack.isEmpty {
-                    var popped = pop()
-                    if !isKnownUniquelyReferenced(&popped) && popped.isLeaf {
+                    var (popped, isUnique) = pop()
+                    if !isUnique && popped.isLeaf {
                         popped = popped.clone()
                     }
 

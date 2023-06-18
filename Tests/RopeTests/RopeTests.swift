@@ -9,6 +9,10 @@ import XCTest
 @testable import Rope
 
 final class RopeTests: XCTestCase {
+    override func setUp() {
+        CloneCounter.reset()
+    }
+
     func testAppendCharacter() {
         var rope = Rope()
         rope.append("a")
@@ -130,6 +134,7 @@ final class RopeTests: XCTestCase {
         r.append(contentsOf: "def")
         XCTAssertEqual("abcdef", String(r))
         XCTAssert(isKnownUniquelyReferenced(&r.root))
+        XCTAssertEqual(0, CloneCounter.count)
     }
 
     func testAppendContentsOfCOW() {
@@ -148,6 +153,7 @@ final class RopeTests: XCTestCase {
 
         XCTAssert(isKnownUniquelyReferenced(&r1.root))
         XCTAssert(isKnownUniquelyReferenced(&r2.root))
+        XCTAssertEqual(1, CloneCounter.count)
     }
 
     func testAppendInPlace() {

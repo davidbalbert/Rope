@@ -7,6 +7,34 @@
 
 import Foundation
 
+#if DEBUG
+class CloneCounter {
+    @TaskLocal static var shared = CloneCounter()
+
+    static func inc() {
+        shared.inc()
+    }
+
+    static func reset() {
+        shared.reset()
+    }
+
+    static var count: Int {
+        shared.count
+    }
+
+    var count = 0
+
+    func inc() {
+        count += 1
+    }
+
+    func reset() {
+        count = 0
+    }
+}
+#endif
+
 extension Rope {
     class Node {
         var height: Int
@@ -177,6 +205,10 @@ extension Rope {
         }
 
         func clone() -> Node {
+            #if DEBUG
+            CloneCounter.inc()
+            #endif
+
             // All properties are value types, so it's sufficient
             // to just create a new Node instance.
             return Node(height, count, children, string)
