@@ -46,8 +46,7 @@ extension Rope {
                             stack[stack.count - 1].append((newLeaf, true))
                         }
                     } else {
-                        let last = stack[stack.count - 1].removeLast()
-                        let c1 = last.0.children
+                        let c1 = lastNode.children
                         let c2 = n.children
                         let count = c1.count + c2.count
                         if count <= maxChild {
