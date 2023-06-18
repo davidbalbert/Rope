@@ -7,34 +7,6 @@
 
 import Foundation
 
-#if DEBUG
-class CloneCounter {
-    @TaskLocal static var shared = CloneCounter()
-
-    static func inc() {
-        shared.inc()
-    }
-
-    static func reset() {
-        shared.reset()
-    }
-
-    static var count: Int {
-        shared.count
-    }
-
-    var count = 0
-
-    func inc() {
-        count += 1
-    }
-
-    func reset() {
-        count = 0
-    }
-}
-#endif
-
 extension Rope {
     class Node {
         var height: Int
@@ -43,16 +15,36 @@ extension Rope {
         var children: [Rope.Node]
         var string: String // always empty for internal nodes
 
+        #if DEBUG
+        var cloneCount: Int = 0
+        #endif
+
         var isEmpty: Bool {
             count == 0
         }
 
-        init (_ height: Int, _ count: Int, _ children: [Node], _ string: String) {
+        init(height: Int, count: Int, children: [Node], string: String) {
             self.height = height
             self.mutationCount = 0
             self.count = count
             self.children = children
             self.string = string
+
+            #if DEBUG
+            self.cloneCount = 0
+            #endif
+        }
+
+        init(cloning node: Node) {
+            self.height = node.height
+            self.mutationCount = node.mutationCount
+            self.count = node.count
+            self.children = node.children
+            self.string = node.string
+
+            #if DEBUG
+            self.cloneCount = node.cloneCount + 1
+            #endif
         }
 
         convenience init(_ children: [Node]) {
@@ -66,7 +58,11 @@ extension Rope {
                 count += child.count
             }
 
-            self.init(height, count, children, "")
+            self.init(height: height, count: count, children: children, string: "")
+
+            #if DEBUG
+
+            #endif
         }
 
         convenience init<C>(_ children: C) where C: Sequence, C.Element == Node {
@@ -93,7 +89,7 @@ extension Rope {
 
         convenience init(_ string: String) {
             assert(string.count <= maxLeaf)
-            self.init(0, string.count, [], string)
+            self.init(height: 0, count: string.count, children: [], string: string)
         }
 
         convenience init() {
@@ -205,13 +201,9 @@ extension Rope {
         }
 
         func clone() -> Node {
-            #if DEBUG
-            CloneCounter.inc()
-            #endif
-
             // All properties are value types, so it's sufficient
             // to just create a new Node instance.
-            return Node(height, count, children, string)
+            return Node(cloning: self)
         }
     }
 }
