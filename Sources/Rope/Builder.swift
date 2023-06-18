@@ -17,7 +17,7 @@ extension Rope {
             var n = node
 
             while true {
-                if stack.last != nil && stack.last!.last!.0.height < n.height {
+                if let (lastNode, _) = stack.last?.last, lastNode.height < n.height {
                     var popped: Node
                     (popped, isUnique) = pop()
 
@@ -27,18 +27,21 @@ extension Rope {
 
                     n = popped.concatinate(n)
                     isUnique = true
-                } else if stack.last != nil && stack.last!.last!.0.height == n.height {
-                    if stack.last!.last!.0.atLeastMinSize && n.atLeastMinSize {
+                } else if var (lastNode, _) = stack.last?.last, lastNode.height == n.height {
+                    if lastNode.atLeastMinSize && n.atLeastMinSize {
                         stack[stack.count - 1].append((n, isUnique))
-                    } else if n.height == 0 {
-                        var (lastLeaf, isLeafUnique) = stack[stack.count - 1][stack[stack.count - 1].count - 1]
+                    } else if n.height == 0 { // lastNode and n are both leafs
+                        // This is here (rather than in the pattern match in the else if) because
+                        // we can't do `if (var lastNode, let lastNodeIsUnique)`, and if they're both
+                        // var, then we get a warning.
+                        let lastNodeIsUnique = stack.last!.last!.1
 
-                        if !isLeafUnique {
-                            lastLeaf = lastLeaf.clone()
-                            stack[stack.count - 1][stack[stack.count - 1].count - 1] = (lastLeaf, true)
+                        if !lastNodeIsUnique {
+                            lastNode = lastNode.clone()
+                            stack[stack.count - 1][stack[stack.count - 1].count - 1] = (lastNode, true)
                         }
                         
-                        if let newLeaf = lastLeaf.pushLeaf(possiblySplitting: n.string) {
+                        if let newLeaf = lastNode.pushLeaf(possiblySplitting: n.string) {
                             assert(newLeaf.atLeastMinSize)
                             stack[stack.count - 1].append((newLeaf, true))
                         }
