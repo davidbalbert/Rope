@@ -119,12 +119,8 @@ extension Rope {
                     return Node(children: [self], mergedWith: other.children)
                 }
 
-                // TODO: xi has right.children[0].clone(). Is that necessary here?
-                // I don't think so because I don't think it's possible for concatinate
-                // to modify other.children[0].
-                //
-                // Concatinate mutates, but self is already guaranteed to be unique at
-                // this point.
+                // Concatinate mutates self, but self is already guaranteed to be
+                // unique at this point.
                 let new = concatinate(other.children[0])
                 if new.height == h2 - 1 {
                     return Node(children: [new], mergedWith: other.children.dropFirst())
@@ -135,8 +131,8 @@ extension Rope {
                 if atLeastMinSize && other.atLeastMinSize {
                     return Node([self, other])
                 } else if h1 == 0 {
-                    // Mutates self, but we only call concatinate with a unique self,
-                    // so we should be fine.
+                    // Mutates self, but because concatinate requires a unique
+                    // self, we know self is already unique at this point.
                     return merge(withLeaf: other)
                 } else {
                     return Node(children: children, mergedWith: other.children)

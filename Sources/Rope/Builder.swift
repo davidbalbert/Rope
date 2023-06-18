@@ -18,10 +18,8 @@ extension Rope {
 
             while true {
                 if stack.last != nil && stack.last!.last!.0.height < n.height {
-                    // TODO: can I destructure instead? I can if `var (popped, isUnique) = pop()` mutates isUnique rather than shadowing it.
-                    let t = pop()
-                    var popped = t.0
-                    isUnique = t.1
+                    var popped: Node
+                    (popped, isUnique) = pop()
 
                     if !isUnique && popped.isLeaf {
                         popped = popped.clone()
@@ -63,10 +61,7 @@ extension Rope {
                         break
                     }
 
-                    // TODO: maybe this could be destructuring like above
-                    let popped = pop()
-                    n = popped.0
-                    isUnique = popped.1
+                    (n, isUnique) = pop()
                 } else {
                     stack.append([(n, isUnique)])
                     break
@@ -137,7 +132,14 @@ extension Rope {
             if nodes.count == 1 {
                 return nodes[0]
             } else {
-                // TODO: I'm not sure if this is correct.
+                // We are able to throw away isUnique for all our children, because
+                // inside Builder, we only need to ask whether the nodes on the
+                // stack are unique or not.
+                //
+                // In general, we do still care if some nodes are unique – specifically
+                // when concatinating two nodes, the rightmost branch of the left tree
+                // in the concatination is being mutated during the graft, so it needs to
+                // be unique, but we take care of that in Node.concatinate.
                 return (Node(nodes.map(\.0)), true)
             }
         }
