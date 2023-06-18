@@ -135,8 +135,8 @@ extension Rope {
                 return nodes[0]
             } else {
                 // We are able to throw away isUnique for all our children, because
-                // inside Builder, we only need to ask whether the nodes on the
-                // stack are unique or not.
+                // inside Builder, we only care about the uniqueness of the nodes
+                // directly on teh stack.
                 //
                 // In general, we do still care if some nodes are unique – specifically
                 // when concatinating two nodes, the rightmost branch of the left tree
@@ -150,7 +150,7 @@ extension Rope {
             if stack.isEmpty {
                 return Node()
             } else {
-                var n = pop().0
+                var (n, _) = pop()
                 while !stack.isEmpty {
                     var (popped, isUnique) = pop()
                     if !isUnique && popped.isLeaf {
