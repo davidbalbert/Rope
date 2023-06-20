@@ -11,7 +11,40 @@ extension Rope {
     enum NodeValue {
         case `internal`([Node])
         case leaf(String)
-        case null
+
+        var children: [Node] {
+            if case let .internal(children) = self {
+                return children
+            } else {
+                fatalError("children called on a leaf node")
+            }
+        }
+
+        var string: String {
+            if case let .leaf(s) = self {
+                return s
+            } else {
+                fatalError("string called on leaf node")
+            }
+        }
+
+        mutating func withMutableChildren(block: (inout [Node]) -> Void) {
+            guard case .internal(var children) = self else {
+                fatalError("withMutableChildren called on a leaf node")
+            }
+
+            block(&children)
+            self = .internal(children)
+        }
+
+        mutating func withMutableLeaf(block: (inout String) -> Void) {
+            guard case .leaf(var leaf) = self else {
+                fatalError("withMutableLeaf called on an internal node")
+            }
+
+            block(&leaf)
+            self = .leaf(leaf)
+        }
     }
 
     class Node {
@@ -29,19 +62,11 @@ extension Rope {
         }
 
         var children: [Node] {
-            if case let .internal(c) = value {
-                return c
-            } else {
-                fatalError("children called on a leaf node")
-            }
+            value.children
         }
 
         var string: String {
-            if case let .leaf(s) = value {
-                return s
-            } else {
-                fatalError("string called on leaf node")
-            }
+            value.string
         }
 
         init(height: Int, count: Int, value: NodeValue) {
@@ -226,24 +251,12 @@ extension Rope {
             return Node(cloning: self)
         }
 
-        func withMutableChildren(block: (inout [Node]) -> Void) {
-            guard case .internal(var children) = value else {
-                fatalError("withMutableChildren called on a leaf node")
-            }
-
-            value = .null
-            block(&children)
-            value = .internal(children)
+        func withMutableLeaf(block: (inout String) -> Void) {
+            value.withMutableLeaf(block: block)
         }
 
-        func withMutableLeaf(block: (inout String) -> Void) {
-            guard case .leaf(var leaf) = value else {
-                fatalError("withMutableLeaf called on an internal node")
-            }
-
-            value = .null
-            block(&leaf)
-            value = .leaf(leaf)
+        func withMutableChildren(block: (inout [Node]) -> Void) {
+            value.withMutableChildren(block: block)
         }
     }
 }
