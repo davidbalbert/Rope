@@ -9,8 +9,10 @@ import Foundation
 
 extension Rope {
     struct Builder {
+        typealias PartialTree = (node: Node, isUnique: Bool)
+
         // the inner array always has at least one element
-        var stack: [[(Node, Bool)]] = []
+        var stack: [[PartialTree]] = []
 
         mutating func push(_ node: inout Node) {
             var isUnique = isKnownUniquelyReferenced(&node)
@@ -34,7 +36,7 @@ extension Rope {
                         // This is here (rather than in the pattern match in the else if) because
                         // we can't do `if (var lastNode, let lastNodeIsUnique)`, and if they're both
                         // var, then we get a warning.
-                        let lastNodeIsUnique = stack.last!.last!.1
+                        let lastNodeIsUnique = stack.last!.last!.isUnique
 
                         if !lastNodeIsUnique {
                             lastNode = lastNode.clone()
@@ -129,10 +131,10 @@ extension Rope {
             }
         }
 
-        mutating func pop() -> (Node, Bool) {
-            let nodes = stack.removeLast()
-            if nodes.count == 1 {
-                return nodes[0]
+        mutating func pop() -> PartialTree {
+            let partialTrees = stack.removeLast()
+            if partialTrees.count == 1 {
+                return partialTrees[0]
             } else {
                 // We are able to throw away isUnique for all our children, because
                 // inside Builder, we only care about the uniqueness of the nodes
@@ -142,7 +144,7 @@ extension Rope {
                 // when concatinating two nodes, the rightmost branch of the left tree
                 // in the concatination is being mutated during the graft, so it needs to
                 // be unique, but we take care of that in Node.concatinate.
-                return (Node(nodes.map(\.0)), true)
+                return (Node(partialTrees.map(\.node)), true)
             }
         }
 
