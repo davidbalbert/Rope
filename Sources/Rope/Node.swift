@@ -109,7 +109,6 @@ extension Rope {
         }
 
         // Mutating. Self must be unique at this point.
-        // - only mutates if self is a leaf.
         func concatinate(_ other: Node) -> Node {
             let h1 = height
             let h2 = other.height
@@ -144,9 +143,7 @@ extension Rope {
 
                 // Because concatinate is mutating, we need to make sure that
                 // children.last is unique before calling.
-                //
-                // concatinate only mutates leaf nodes
-                if !isKnownUniquelyReferenced(&children[children.count-1]) && children[children.count-1].isLeaf {
+                if !isKnownUniquelyReferenced(&children[children.count-1]) {
                     children[children.count-1] = children[children.count-1].clone()
                 }
 

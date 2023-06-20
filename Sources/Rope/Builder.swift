@@ -23,7 +23,7 @@ extension Rope {
                     var popped: Node
                     (popped, isUnique) = pop()
 
-                    if !isUnique && popped.isLeaf {
+                    if !isUnique {
                         popped = popped.clone()
                     }
 
@@ -155,7 +155,7 @@ extension Rope {
                 var (n, _) = pop()
                 while !stack.isEmpty {
                     var (popped, isUnique) = pop()
-                    if !isUnique && popped.isLeaf {
+                    if !isUnique {
                         popped = popped.clone()
                     }
 
