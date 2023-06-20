@@ -94,7 +94,10 @@ extension Rope {
 
                     let childRange = 0..<node.children[i].count
                     let intersection = childRange.clamped(to: range.offset(by: -offset))
-                    push(&node.children[i], slicedBy: intersection)
+
+                    node.withMutableChildren { children in
+                        push(&children[i], slicedBy: intersection)
+                    }
                     offset += node.children[i].count
                 }
             }

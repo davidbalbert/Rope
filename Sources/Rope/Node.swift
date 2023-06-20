@@ -8,12 +8,17 @@
 import Foundation
 
 extension Rope {
+    enum NodeValue {
+        case `internal`([Node])
+        case leaf(String)
+        case null
+    }
+
     class Node {
         var height: Int
         var mutationCount: Int
         var count: Int
-        var children: [Rope.Node]
-        var string: String // always empty for internal nodes
+        var value: NodeValue
 
         #if DEBUG
         var cloneCount: Int = 0
@@ -23,12 +28,27 @@ extension Rope {
             count == 0
         }
 
-        init(height: Int, count: Int, children: [Node], string: String) {
+        var children: [Node] {
+            if case let .internal(c) = value {
+                return c
+            } else {
+                fatalError("children called on a leaf node")
+            }
+        }
+
+        var string: String {
+            if case let .leaf(s) = value {
+                return s
+            } else {
+                fatalError("string called on leaf node")
+            }
+        }
+
+        init(height: Int, count: Int, value: NodeValue) {
             self.height = height
             self.mutationCount = 0
             self.count = count
-            self.children = children
-            self.string = string
+            self.value = value
 
             #if DEBUG
             self.cloneCount = 0
@@ -39,8 +59,7 @@ extension Rope {
             self.height = node.height
             self.mutationCount = node.mutationCount
             self.count = node.count
-            self.children = node.children
-            self.string = node.string
+            self.value = node.value
 
             #if DEBUG
             self.cloneCount = node.cloneCount + 1
@@ -58,7 +77,7 @@ extension Rope {
                 count += child.count
             }
 
-            self.init(height: height, count: count, children: children, string: "")
+            self.init(height: height, count: count, value: .internal(children))
 
             #if DEBUG
 
@@ -89,7 +108,7 @@ extension Rope {
 
         convenience init(_ string: String) {
             assert(string.count <= maxLeaf)
-            self.init(height: 0, count: string.count, children: [], string: string)
+            self.init(height: 0, count: string.count, value: .leaf(string))
         }
 
         convenience init() {
@@ -143,8 +162,11 @@ extension Rope {
 
                 // Because concatinate is mutating, we need to make sure that
                 // children.last is unique before calling.
-                if !isKnownUniquelyReferenced(&children[children.count-1]) {
-                    children[children.count-1] = children[children.count-1].clone()
+
+                withMutableChildren { children in
+                    if !isKnownUniquelyReferenced(&children[children.count-1]) {
+                        children[children.count-1] = children[children.count-1].clone()
+                    }
                 }
 
                 let new = children[children.count - 1].concatinate(other)
@@ -178,7 +200,9 @@ extension Rope {
 
             mutationCount &+= 1
 
-            string += s
+            withMutableLeaf { string in
+                string += s
+            }
 
             if string.count <= maxLeaf {
                 count = string.count
@@ -187,7 +211,10 @@ extension Rope {
                 // TODO: split at newline boundary if we can
                 let splitPoint = string.index(string.startIndex, offsetBy: Swift.max(minLeaf, string.count - maxLeaf))
                 let split = String(string[splitPoint...])
-                string = String(string[..<splitPoint])
+
+                withMutableLeaf { string in
+                    string = String(string[..<splitPoint])
+                }
                 count = string.count
                 return Node(split)
             }
@@ -197,6 +224,26 @@ extension Rope {
             // All properties are value types, so it's sufficient
             // to just create a new Node instance.
             return Node(cloning: self)
+        }
+
+        func withMutableChildren(block: (inout [Node]) -> Void) {
+            guard case .internal(var children) = value else {
+                fatalError("withMutableChildren called on a leaf node")
+            }
+
+            value = .null
+            block(&children)
+            value = .internal(children)
+        }
+
+        func withMutableLeaf(block: (inout String) -> Void) {
+            guard case .leaf(var leaf) = value else {
+                fatalError("withMutableLeaf called on an internal node")
+            }
+
+            value = .null
+            block(&leaf)
+            value = .leaf(leaf)
         }
     }
 }
