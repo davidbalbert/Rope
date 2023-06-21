@@ -33,6 +33,14 @@ extension Rope {
                 fatalError("withMutableChildren called on a leaf node")
             }
 
+            // I considered adding a .null case and doing the following
+            // to ensure that children has only one reference, but it seems
+            // the compiler is smart enough to not need it. As far as I
+            // can tell, the compiler doesn't add a retain, so children
+            // gets mutated in place.
+            //
+            // See this for more: https://forums.swift.org/t/appending-to-an-array-stored-in-an-enum-case-payload-o-1-or-o-n/56716
+            // self = .null
             block(&children)
             self = .internal(children)
         }
@@ -42,6 +50,8 @@ extension Rope {
                 fatalError("withMutableLeaf called on an internal node")
             }
 
+            // See above comment for why self = .null isn't necessary.
+            // self = .null
             block(&leaf)
             self = .leaf(leaf)
         }
@@ -190,6 +200,7 @@ extension Rope {
 
                 withMutableChildren { children in
                     if !isKnownUniquelyReferenced(&children[children.count-1]) {
+//                        mutationCount &+= 1
                         children[children.count-1] = children[children.count-1].clone()
                     }
                 }

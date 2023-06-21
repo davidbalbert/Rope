@@ -29,10 +29,13 @@ let package = Package(
             dependencies: ["SimpleRope"]),
         .target(
             name: "Rope",
-            dependencies: []),
+            dependencies: [],
+            swiftSettings: [.unsafeFlags(["-enable-testing"])]),
         .testTarget(
             name: "RopeTests",
             dependencies: ["Rope"]),
-
+        .testTarget(
+            name: "RopePerformanceTests",
+            dependencies: ["Rope"])
     ]
 )
