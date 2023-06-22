@@ -7,17 +7,10 @@
 
 import Foundation
 
-// a rope made out of a B-tree
-// internal nodes are order 8: 4...8 children
-// leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024
-
-let minChild = 4
-let maxChild = 8
-
-let minLeaf = 511
-let maxLeaf = 1023
-
 struct Tree<Summary> where Summary: SummaryProtocol {
+    static var minChild: Int { 4 }
+    static var maxChild: Int { 8 }
+
     typealias Leaf = Summary.Leaf
     typealias Element = Leaf.Element
 

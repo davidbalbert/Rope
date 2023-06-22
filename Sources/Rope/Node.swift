@@ -108,7 +108,7 @@ extension Tree {
         }
 
         convenience init(_ children: [Node]) {
-            assert(1 <= children.count && children.count <= maxChild)
+            assert(1 <= children.count && children.count <= Tree.maxChild)
             let height = children[0].height + 1
             var count = 0
 
@@ -129,7 +129,7 @@ extension Tree {
             let count = leftChildren.count + rightChildren.count
             let children = [AnySequence(leftChildren), AnySequence(rightChildren)].joined()
 
-            if count <= maxChild {
+            if count <= Tree.maxChild {
                 self.init(children)
             } else {
                 let split = count / 2

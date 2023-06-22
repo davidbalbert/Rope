@@ -38,9 +38,9 @@ final class RopeTests: XCTestCase {
     }
 
     func testInitWithStringBiggerThanALeaf() {
-        let string = String(repeating: "a", count: maxLeaf+1)
+        let string = String(repeating: "a", count: Chunk.maxSize+1)
         let rope = Rope(string)
-        XCTAssertEqual(rope.count, maxLeaf+1)
+        XCTAssertEqual(rope.count, Chunk.maxSize+1)
         XCTAssertEqual(string, String(rope))
     }
 

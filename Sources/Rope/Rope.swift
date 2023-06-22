@@ -7,6 +7,10 @@
 
 import Foundation
 
+// a rope made out of a B-tree
+// internal nodes are order 8: 4...8 children (see Tree.swift)
+// leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024 (see Chunk.swift)
+
 struct RopeSummary: SummaryProtocol {
     var utf16: Int
     var chars: Int
