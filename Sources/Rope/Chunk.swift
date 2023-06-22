@@ -113,6 +113,6 @@ struct Chunk: LeafProtocol {
     }
 
     subscript(range: Range<String.Index>) -> Chunk {
-        Chunk(String(string[range]))
+        Chunk(string[range])
     }
 }
