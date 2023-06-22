@@ -61,7 +61,7 @@ extension Tree {
         }
     }
 
-    class Node {
+    final class Node {
         typealias Leaf = Summary.Leaf
 
         var height: Int
@@ -114,7 +114,7 @@ extension Tree {
 
             for child in children {
                 assert(child.height + 1 == height)
-                assert(child.atLeastMinSize)
+                assert(!child.isUndersized)
                 count += child.count
             }
 
@@ -151,11 +151,11 @@ extension Tree {
             return height == 0
         }
 
-        var atLeastMinSize: Bool {
+        var isUndersized: Bool {
             if isLeaf {
-                return leaf.atLeastMinSize
+                return leaf.isUndersized
             } else {
-                return count >= minChild
+                return count < minChild
             }
         }
 
@@ -165,7 +165,7 @@ extension Tree {
             let h2 = other.height
 
             if h1 < h2 {
-                if h1 == h2 - 1 && atLeastMinSize {
+                if h1 == h2 - 1 && !isUndersized {
                     return Node(children: [self], mergedWith: other.children)
                 }
 
@@ -178,7 +178,7 @@ extension Tree {
                     return Node(children: new.children, mergedWith: other.children.dropFirst())
                 }
             } else if h1 == h2 {
-                if atLeastMinSize && other.atLeastMinSize {
+                if !isUndersized && !other.isUndersized {
                     return Node([self, other])
                 } else if h1 == 0 {
                     // Mutates self, but because concatinate requires a unique
@@ -188,7 +188,7 @@ extension Tree {
                     return Node(children: children, mergedWith: other.children)
                 }
             } else {
-                if h2 == h1 - 1 && other.atLeastMinSize {
+                if h2 == h1 - 1 && !other.isUndersized {
                     return Node(children: children, mergedWith: [other])
                 }
 
@@ -215,7 +215,7 @@ extension Tree {
         func merge(withLeaf other: Node) -> Node {
             assert(isLeaf && other.isLeaf)
 
-            if atLeastMinSize && other.atLeastMinSize {
+            if !isUndersized && !other.isUndersized {
                 return Node([self, other])
             }
 

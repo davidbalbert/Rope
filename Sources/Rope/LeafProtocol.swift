@@ -7,23 +7,13 @@
 
 import Foundation
 
-protocol LeafProtocol {
-    associatedtype Index: Comparable
-    associatedtype Element
-
-    // The length of the leaf in base units
+protocol LeafProtocol: BidirectionalCollection where SubSequence == Self {
+    // Already in BidirectionCollection, but important enough to point
+    // out here. Must be in base units.
     var count: Int { get }
-    var atLeastMinSize: Bool { get }
 
+    // Initializes an empty leaf.
     init()
+    var isUndersized: Bool { get }
     mutating func push(possiblySplitting other: Self) -> Self?
-
-    func index(before i: Index) -> Index
-    func index(after i: Index) -> Index
-    func index(_ index: Index, offsetBy distance: Int) -> Index
-    var startIndex: Index { get }
-    var endIndex: Index { get }
-
-    subscript(index: Index) -> Element { get }
-    subscript(range: Range<Index>) -> Self { get }
 }

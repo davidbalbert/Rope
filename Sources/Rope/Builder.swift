@@ -30,7 +30,7 @@ extension Tree {
                     n = popped.concatinate(n)
                     isUnique = true
                 } else if var (lastNode, _) = stack.last?.last, lastNode.height == n.height {
-                    if lastNode.atLeastMinSize && n.atLeastMinSize {
+                    if !lastNode.isUndersized && !n.isUndersized {
                         stack[stack.count - 1].append((n, isUnique))
                     } else if n.height == 0 { // lastNode and n are both leafs
                         // TODO: there should be a bump in mutation count somewhere in here.
@@ -53,7 +53,7 @@ extension Tree {
                         lastNode.count = lastNode.leaf.count
 
                         if let newLeaf {
-                            assert(newLeaf.atLeastMinSize)
+                            assert(!newLeaf.isUndersized)
                             stack[stack.count - 1].append((Node(newLeaf), true))
                         }
                     } else {

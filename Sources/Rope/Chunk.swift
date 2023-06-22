@@ -21,9 +21,7 @@ struct Chunk: LeafProtocol {
     init<S>(_ s: S) where S: Collection, S.Element == Character {
         var s = String(s)
         s.makeContiguousUTF8()
-
         assert(s.utf8.count <= Chunk.maxSize)
-
         self.string = s
     }
 
@@ -31,8 +29,8 @@ struct Chunk: LeafProtocol {
         string.utf8.count
     }
 
-    var atLeastMinSize: Bool {
-        count >= Chunk.minSize
+    var isUndersized: Bool {
+        count < Chunk.minSize
     }
 
     func countChars() -> Int {
@@ -110,10 +108,6 @@ struct Chunk: LeafProtocol {
         string.index(after: i)
     }
 
-    func index(_ index: String.Index, offsetBy distance: Int) -> String.Index {
-        string.index(index, offsetBy: distance)
-    }
-
     subscript(index: String.Index) -> Character {
         string[index]
     }
@@ -122,4 +116,3 @@ struct Chunk: LeafProtocol {
         Chunk(String(string[range]))
     }
 }
-
