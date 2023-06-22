@@ -7,62 +7,14 @@
 
 import Foundation
 
-extension Tree {
-    struct Index {
-        var nodeIndex: NodeIndex
-
-        init(startOf rope: Tree) {
-            self.nodeIndex = NodeIndex(startOf: rope.root)
-        }
-
-        init(endOf rope: Tree) {
-            self.nodeIndex = NodeIndex(endOf: rope.root)
-        }
-
-        init(offsetBy offset: Int, in rope: Tree) {
-            self.nodeIndex = NodeIndex(offsetBy: offset, in: rope.root)
-        }
-
-        mutating func formSuccessor() {
-            self.nodeIndex.formSuccessor()
-        }
-
-        mutating func formPredecessor() {
-            self.nodeIndex.formPredecessor()
-        }
-
-        var value: Leaf.Element? {
-            nodeIndex.value
-        }
-
-        func validate(for root: Node) {
-            nodeIndex.validate(for: root)
-        }
-
-        func validate(_ other: NodeIndex) {
-            nodeIndex.validate(other)
-        }
-    }
-}
-
-extension Tree.Index: Comparable {
-    static func < (left: Tree.Index, right: Tree.Index) -> Bool {
-        left.nodeIndex < right.nodeIndex        
-    }
-
-    static func == (left: Tree.Index, right: Tree.Index) -> Bool {
-        left.nodeIndex == right.nodeIndex
-    }
-}
-
 extension Tree: BidirectionalCollection {
     struct Iterator: IteratorProtocol {
-        let rope: Tree // retain rope to make sure it doesn't get dealocated during iteration
+        let root: Node // retain the root to make sure it doesn't get dealocated during iteration
         var index: Index
 
-        init(rope: Tree) {
-            self.rope = rope
-            self.index = rope.startIndex
+        init(root: Node) {
+            self.root = root
+            self.index = Index(startOf: root)
         }
 
         mutating func next() -> Leaf.Element? {
@@ -73,15 +25,15 @@ extension Tree: BidirectionalCollection {
     }
 
     func makeIterator() -> Iterator {
-        Iterator(rope: self)
+        Iterator(root: root)
     }
 
     var startIndex: Index {
-        Index(startOf: self)
+        Index(startOf: root)
     }
 
     var endIndex: Index {
-        Index(endOf: self)
+        Index(endOf: root)
     }
 
     // TODO: we should also overwrite the default implementation of
@@ -129,7 +81,7 @@ extension Tree: BidirectionalCollection {
         // Index(offsetBy:in:) will let you create an index that's == endIndex,
         // but we don't want to allow that for subscripting.
         precondition(offset < count, "Index out of bounds")
-        return Index(offsetBy: offset, in: self).value!
+        return Index(offsetBy: offset, in: root).value!
     }
 
     // Does not actually mutate

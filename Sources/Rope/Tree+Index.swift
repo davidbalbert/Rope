@@ -1,6 +1,6 @@
 //
-//  Node+Collection.swift
-//  
+//  Tree+Index.swift
+//
 //
 //  Created by David Albert on 6/13/23.
 //
@@ -21,7 +21,7 @@ extension Tree {
         }
     }
 
-    struct NodeIndex {
+    struct Index {
         weak var root: Node?
         let mutationCount: Int
         var position: Int
@@ -174,7 +174,7 @@ extension Tree {
             precondition(self.mutationCount == root.mutationCount)
         }
 
-        func validate(_ other: NodeIndex) {
+        func validate(_ other: Index) {
             precondition(root === other.root && root != nil)
             precondition(mutationCount == root!.mutationCount)
             precondition(mutationCount == other.mutationCount)
@@ -182,24 +182,14 @@ extension Tree {
     }
 }
 
-extension Tree.NodeIndex: Comparable {
-    static func < (left: Tree.NodeIndex, right: Tree.NodeIndex) -> Bool {
+extension Tree.Index: Comparable {
+    static func < (left: Tree.Index, right: Tree.Index) -> Bool {
         left.validate(right)
         return left.position < right.position
     }
 
-    static func == (left: Tree.NodeIndex, right: Tree.NodeIndex) -> Bool {
+    static func == (left: Tree.Index, right: Tree.Index) -> Bool {
         left.validate(right)
         return left.position == right.position
-    }
-}
-
-extension Tree.Node {
-    var startIndex: Tree.NodeIndex {
-        return Tree.NodeIndex(startOf: self)
-    }
-
-    var endIndex: Tree.NodeIndex {
-        return Tree.NodeIndex(endOf: self)
     }
 }
