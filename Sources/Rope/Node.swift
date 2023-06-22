@@ -13,18 +13,36 @@ extension Tree {
         case leaf(Summary.Leaf)
 
         var children: [Node] {
-            if case let .internal(children) = self {
-                return children
-            } else {
-                fatalError("children called on a leaf node")
+            _read {
+                guard case .internal(let children) = self else {
+                    fatalError("children called on a leaf node")
+                }
+                
+                yield children
+            }
+            _modify {
+                guard case .internal(var children) = self else {
+                    fatalError("children called on a leaf node")
+                }
+                
+                yield &children
             }
         }
 
         var leaf: Summary.Leaf {
-            if case let .leaf(s) = self {
-                return s
-            } else {
-                fatalError("string called on leaf node")
+            _read {
+                guard case .leaf(let leaf) = self else {
+                    fatalError("leaf called on an internal node")
+                }
+
+                yield leaf
+            }
+            _modify {
+                guard case .leaf(var leaf) = self else {
+                    fatalError("leaf called on an internal node")
+                }
+
+                yield &leaf
             }
         }
 
@@ -78,11 +96,21 @@ extension Tree {
         }
 
         var children: [Node] {
-            value.children
+            _read {
+                yield value.children
+            }
+            _modify {
+                yield &value.children
+            }
         }
 
         var leaf: Summary.Leaf {
-            value.leaf
+            _read {
+                yield value.leaf
+            }
+            _modify {
+                yield &value.leaf
+            }
         }
 
         init(height: Int, count: Int, value: NodeValue) {
@@ -196,10 +224,10 @@ extension Tree {
                 // children.last is unique before calling.
 
                 withMutableChildren { children in
-                    if !isKnownUniquelyReferenced(&children[children.count-1]) {
-                        mutationCount &+= 1
-                        children[children.count-1] = children[children.count-1].clone()
-                    }
+                if !isKnownUniquelyReferenced(&children[children.count-1]) {
+                    mutationCount &+= 1
+                    children[children.count-1] = children[children.count-1].clone()
+                }
                 }
 
                 let new = children[children.count - 1].concatinate(other)
