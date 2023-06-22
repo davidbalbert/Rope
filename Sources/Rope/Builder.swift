@@ -156,44 +156,10 @@ extension Tree {
                 return n
             }
         }
-    }
-}
 
-extension Tree.Builder where Summary == RopeSummary {
-    mutating func push(string s: String) {
-        if s.isEmpty {
-            return
-        }
-
-        if s.utf8.count <= Chunk.maxSize {
-            push(leaf: Chunk(s))
-        } else {
-            var i = s.startIndex
-            while i < s.endIndex {
-                var substring = s[i...]
-                let n = substring.utf8.count
-
-                let idx: String.Index
-                if n > Chunk.maxSize {
-                    let minSplit = Chunk.minSize
-                    let maxSplit = min(Chunk.maxSize, n - Chunk.minSize)
-                    
-                    let nl = UInt8(ascii: "\n")
-                    let lineBoundary = substring.withUTF8 { buf in
-                        buf[minSplit..<maxSplit].firstIndex(of: nl)
-                    }
-                    
-                    let offset = lineBoundary ?? maxSplit
-                    let codepoint = substring.utf8.index(substring.startIndex, offsetBy: offset)
-                    // TODO: this is SPI. Hopefully it gets exposed soon.
-                    idx = substring.unicodeScalars._index(roundingDown: codepoint)
-                } else {
-                    idx = substring.endIndex
-                }
-
-                let prefix = substring[..<idx]
-                i = prefix.endIndex
-                push(leaf: Chunk(prefix))
+        mutating func push<S>(contentsOf elements: S) where S: Sequence, S.Element == Element {
+            for leaf in Leaf.makeLeavesFrom(contentsOf: elements) {
+                push(leaf: leaf)
             }
         }
     }

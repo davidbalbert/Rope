@@ -8,6 +8,45 @@
 import Foundation
 
 struct Chunk: LeafProtocol {
+    static func makeLeavesFrom(contentsOf elements: some Sequence<Character>) -> UnfoldSequence<Chunk, String.Index> {
+        var s = String(elements)
+        s.makeContiguousUTF8()
+
+        return sequence(state: s.startIndex) { i in
+            var substring = s[i...]
+
+            if substring.isEmpty {
+                return nil
+            }
+
+            if s.utf8.count <= Chunk.maxSize {
+                i = substring.endIndex
+                return Chunk(s)
+            } else {
+                let n = substring.utf8.count
+
+                if n > Chunk.maxSize {
+                    let minSplit = Chunk.minSize
+                    let maxSplit = Swift.min(Chunk.maxSize, n - Chunk.minSize)
+
+                    let nl = UInt8(ascii: "\n")
+                    let lineBoundary = substring.withUTF8 { buf in
+                        buf[minSplit..<maxSplit].firstIndex(of: nl)
+                    }
+
+                    let offset = lineBoundary ?? maxSplit
+                    let codepoint = substring.utf8.index(substring.startIndex, offsetBy: offset)
+                    // TODO: this is SPI. Hopefully it gets exposed soon.
+                    i = substring.unicodeScalars._index(roundingDown: codepoint)
+                } else {
+                    i = substring.endIndex
+                }
+
+                return Chunk(substring[..<i])
+            }
+        }
+    }
+
     // measured in base units
     static let minSize = 511
     static let maxSize = 1023
@@ -15,10 +54,10 @@ struct Chunk: LeafProtocol {
     var string: String
 
     init() {
-        self.init("")
+        self.string = ""
     }
 
-    init<S>(_ s: S) where S: Collection, S.Element == Character {
+    init<S>(_ s: S) where S: Sequence, S.Element == Character {
         var s = String(s)
         s.makeContiguousUTF8()
         assert(s.utf8.count <= Chunk.maxSize)

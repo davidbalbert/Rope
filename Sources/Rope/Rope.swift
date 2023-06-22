@@ -34,45 +34,7 @@ struct RopeSummary: SummaryProtocol {
 typealias Rope = Tree<RopeSummary>
 
 extension Rope {
-    public init(_ string: String) {
-        var b = Builder()
-        b.push(string: string)
-        self.init(b.build())
-    }
-
-    public init<S>(_ string: S) where S: Collection, S.Element == Character {
-        var b = Builder()
-        b.push(string: String(string))
-        self.init(b.build())
-    }
-
     mutating func append(_ string: String) {
         append(contentsOf: string)
-    }
-}
-
-extension Rope: RangeReplaceableCollection where Element == Character {
-    mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C: Collection, C.Element == Character {
-        subrange.lowerBound.validate(for: root)
-        subrange.upperBound.validate(for: root)
-
-        var b = Builder()
-        b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
-        b.push(string: String(newElements))
-        b.push(&root, slicedBy: Range(subrange.upperBound..<endIndex))
-        self.root = b.build()
-    }
-
-    // The deafult implementation calls append(_:) in a loop. This should be faster.
-    mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Character {
-        var b = Builder()
-        b.push(&root)
-        b.push(string: String(newElements))
-        self.root = b.build()
-    }
-
-    // override the default behavior
-    mutating func reserveCapacity(_ n: Int) {
-        // no-op
     }
 }
