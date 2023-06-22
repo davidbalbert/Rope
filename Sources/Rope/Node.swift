@@ -7,10 +7,10 @@
 
 import Foundation
 
-extension Rope {
+extension Tree {
     enum NodeValue {
         case `internal`([Node])
-        case leaf(String)
+        case leaf(Summary.Leaf)
 
         var children: [Node] {
             if case let .internal(children) = self {
@@ -20,7 +20,7 @@ extension Rope {
             }
         }
 
-        var string: String {
+        var leaf: Summary.Leaf {
             if case let .leaf(s) = self {
                 return s
             } else {
@@ -28,7 +28,7 @@ extension Rope {
             }
         }
 
-        mutating func withMutableChildren(block: (inout [Node]) -> Void) {
+        mutating func withMutableChildren<R>(block: (inout [Node]) -> R) -> R {
             guard case .internal(var children) = self else {
                 fatalError("withMutableChildren called on a leaf node")
             }
@@ -41,27 +41,33 @@ extension Rope {
             //
             // See this for more: https://forums.swift.org/t/appending-to-an-array-stored-in-an-enum-case-payload-o-1-or-o-n/56716
             // self = .null
-            block(&children)
+            let ret = block(&children)
             self = .internal(children)
+
+            return ret
         }
 
-        mutating func withMutableLeaf(block: (inout String) -> Void) {
+        mutating func withMutableLeaf<R>(block: (inout Summary.Leaf) -> R) -> R {
             guard case .leaf(var leaf) = self else {
                 fatalError("withMutableLeaf called on an internal node")
             }
 
             // See above comment for why self = .null isn't necessary.
             // self = .null
-            block(&leaf)
+            let ret = block(&leaf)
             self = .leaf(leaf)
+
+            return ret
         }
     }
 
     class Node {
+        typealias Leaf = Summary.Leaf
+
         var height: Int
-        var mutationCount: Int
-        var count: Int
+        var count: Int // in base units
         var value: NodeValue
+        var mutationCount: Int
 
         #if DEBUG
         var cloneCount: Int = 0
@@ -75,8 +81,8 @@ extension Rope {
             value.children
         }
 
-        var string: String {
-            value.string
+        var leaf: Summary.Leaf {
+            value.leaf
         }
 
         init(height: Int, count: Int, value: NodeValue) {
@@ -113,10 +119,6 @@ extension Rope {
             }
 
             self.init(height: height, count: count, value: .internal(children))
-
-            #if DEBUG
-
-            #endif
         }
 
         convenience init<C>(_ children: C) where C: Sequence, C.Element == Node {
@@ -137,17 +139,12 @@ extension Rope {
             }
         }
 
-        convenience init<S>(_ seq: S) where S: Collection, S.Element == Node {
-            self.init(Array(seq))
-        }
-
-        convenience init(_ string: String) {
-            assert(string.count <= maxLeaf)
-            self.init(height: 0, count: string.count, value: .leaf(string))
+        convenience init(_ leaf: Leaf) {
+            self.init(height: 0, count: leaf.count, value: .leaf(leaf))
         }
 
         convenience init() {
-            self.init("")
+            self.init(Leaf())
         }
 
         var isLeaf: Bool {
@@ -156,7 +153,7 @@ extension Rope {
 
         var atLeastMinSize: Bool {
             if isLeaf {
-                return count >= minLeaf
+                return leaf.atLeastMinSize
             } else {
                 return count >= minChild
             }
@@ -200,7 +197,7 @@ extension Rope {
 
                 withMutableChildren { children in
                     if !isKnownUniquelyReferenced(&children[children.count-1]) {
-//                        mutationCount &+= 1
+                        mutationCount &+= 1
                         children[children.count-1] = children[children.count-1].clone()
                     }
                 }
@@ -222,37 +219,18 @@ extension Rope {
                 return Node([self, other])
             }
 
-            let newLeaf = pushLeaf(possiblySplitting: other.string)
-            if let newLeaf {
-                return Node([self, newLeaf])
-            } else {
-                return self
-            }
-        }
-
-        // Mutating. Self must be unique at this point.
-        func pushLeaf(possiblySplitting s: String) -> Node? {
-            assert(isLeaf)
-
             mutationCount &+= 1
 
-            withMutableLeaf { string in
-                string += s
+            var newLeaf: Leaf?
+            withMutableLeaf { leaf in
+                newLeaf = leaf.push(possiblySplitting: other.leaf)
             }
 
-            if string.count <= maxLeaf {
-                count = string.count
-                return nil
+            if let newLeaf {
+                return Node([self, Node(newLeaf)])
             } else {
-                // TODO: split at newline boundary if we can
-                let splitPoint = string.index(string.startIndex, offsetBy: Swift.max(minLeaf, string.count - maxLeaf))
-                let split = String(string[splitPoint...])
-
-                withMutableLeaf { string in
-                    string = String(string[..<splitPoint])
-                }
-                count = string.count
-                return Node(split)
+                count = leaf.count
+                return self
             }
         }
 
@@ -262,11 +240,11 @@ extension Rope {
             return Node(cloning: self)
         }
 
-        func withMutableLeaf(block: (inout String) -> Void) {
+        func withMutableLeaf<R>(block: (inout Leaf) -> R) -> R {
             value.withMutableLeaf(block: block)
         }
 
-        func withMutableChildren(block: (inout [Node]) -> Void) {
+        func withMutableChildren<R>(block: (inout [Node]) -> R) -> R{
             value.withMutableChildren(block: block)
         }
     }

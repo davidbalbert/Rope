@@ -7,7 +7,20 @@
 
 import Foundation
 
-extension Rope {
+extension Tree {
+    struct PathElement {
+        // An index is valid only if it's root present and it's mutation
+        // count is equal to the root's mutation count. If both of those
+        // are true, we're guaranteed that the path is valid, so we can
+        // unowned instead of weak references for the nodes.
+        unowned var node: Node
+        var slot: Int // child index
+
+        var child: Node {
+            node.children[slot]
+        }
+    }
+
     struct NodeIndex {
         weak var root: Node?
         let mutationCount: Int
@@ -15,7 +28,7 @@ extension Rope {
         var path: [PathElement]
 
         var current: Node // Root if we're at the end of the rope. Otherwise, a leaf.
-        var idx: String.Index? // nil if we're at the end of the rope.
+        var idx: Leaf.Index? // nil if we're at the end of the rope.
 
         init(atNonEndOffset position: Int, in root: Node) {
             assert((root.isEmpty && position == 0) || (0..<root.count).contains(position))
@@ -43,7 +56,7 @@ extension Rope {
             }
 
             self.current = node
-            self.idx = node.string.index(node.string.startIndex, offsetBy: pos)
+            self.idx = node.leaf.index(node.leaf.startIndex, offsetBy: pos)
         }
 
         init(offsetBy offset: Int, in root: Node) {
@@ -74,9 +87,9 @@ extension Rope {
             return idx == nil
         }
 
-        var value: Character? {
+        var value: Leaf.Element? {
             guard let idx else { return nil }
-            return current.string[idx]
+            return current.leaf[idx]
         }
 
         mutating func formSuccessor() {
@@ -84,9 +97,9 @@ extension Rope {
                 preconditionFailure("Cannot advance past endIndex")
             }
 
-            idx = current.string.index(after: idx)
+            idx = current.leaf.index(after: idx)
 
-            if idx < current.string.endIndex {
+            if idx < current.leaf.endIndex {
                 self.idx = idx
             } else {
                 while let el = path.last, el.slot == el.node.children.count - 1 {
@@ -108,18 +121,18 @@ extension Rope {
                 }
 
                 self.current = node
-                self.idx = node.string.startIndex
+                self.idx = node.leaf.startIndex
             }
 
             self.position += 1
         }
 
         mutating func formPredecessor() {
-            if idx == current.string.startIndex && path.allSatisfy({ $0.slot == 0 }) {
+            if idx == current.leaf.startIndex && path.allSatisfy({ $0.slot == 0 }) {
                 preconditionFailure("Cannot go below startIndex")
             }
 
-            var i: String.Index
+            var i: Leaf.Index
             if let idx {
                 i = idx
             } else {
@@ -131,11 +144,11 @@ extension Rope {
                 }
 
                 current = node
-                i = node.string.endIndex
+                i = node.leaf.endIndex
             }
 
-            if i != current.string.startIndex {
-                self.idx = current.string.index(before: i)
+            if i != current.leaf.startIndex {
+                self.idx = current.leaf.index(before: i)
             } else {
                 while let el = path.last, el.slot == 0 {
                     path.removeLast()
@@ -150,7 +163,7 @@ extension Rope {
                 }
 
                 self.current = node
-                self.idx = node.string.index(before: node.string.endIndex)
+                self.idx = node.leaf.index(before: node.leaf.endIndex)
             }
 
             position -= 1
@@ -169,24 +182,24 @@ extension Rope {
     }
 }
 
-extension Rope.NodeIndex: Comparable {
-    static func < (left: Rope.NodeIndex, right: Rope.NodeIndex) -> Bool {
+extension Tree.NodeIndex: Comparable {
+    static func < (left: Tree.NodeIndex, right: Tree.NodeIndex) -> Bool {
         left.validate(right)
         return left.position < right.position
     }
 
-    static func == (left: Rope.NodeIndex, right: Rope.NodeIndex) -> Bool {
+    static func == (left: Tree.NodeIndex, right: Tree.NodeIndex) -> Bool {
         left.validate(right)
         return left.position == right.position
     }
 }
 
-extension Rope.Node {
-    var startIndex: Rope.NodeIndex {
-        return Rope.NodeIndex(startOf: self)
+extension Tree.Node {
+    var startIndex: Tree.NodeIndex {
+        return Tree.NodeIndex(startOf: self)
     }
 
-    var endIndex: Rope.NodeIndex {
-        return Rope.NodeIndex(endOf: self)
+    var endIndex: Tree.NodeIndex {
+        return Tree.NodeIndex(endOf: self)
     }
 }

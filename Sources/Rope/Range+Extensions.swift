@@ -8,7 +8,7 @@
 import Foundation
 
 extension Range<Int> {
-    init(_ ropeRange: Range<Rope.Index>) {
+    init<Summary>(_ ropeRange: Range<Tree<Summary>.Index>) where Summary: SummaryProtocol {
         self.init(uncheckedBounds: (ropeRange.lowerBound.nodeIndex.position, ropeRange.upperBound.nodeIndex.position))
     }
 }

@@ -1,43 +1,39 @@
 //
-//  File.swift
-//  
+//  Rope.swift
 //
-//  Created by David Albert on 6/2/23.
+//
+//  Created by David Albert on 6/21/23.
 //
 
 import Foundation
 
-// a rope made out of a B-tree
-// internal nodes are order 8: 4...8 children
-// leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024
+struct RopeSummary: SummaryProtocol {
+    var utf16: Int
+    var chars: Int
+    var lines: Int
 
-let minChild = 4
-let maxChild = 8
-
-let minLeaf = 511
-let maxLeaf = 1023
-
-struct Rope {
-    var root: Node
-
-    static func + (_ left: Rope, _ right: Rope) -> Rope {
-        var l = left.root
-        var r = right.root
-
-        var b = Builder()
-        b.push(&l)
-        b.push(&r)
-        return Rope(b.build())
+    static func += (left: inout RopeSummary, right: RopeSummary) {
+        left.utf16 += right.utf16
+        left.chars += right.chars
+        left.lines += right.lines
     }
 
-    init(_ root: Node) {
-        self.root = root
+    static var zero: RopeSummary {
+        RopeSummary(utf16: 0, chars: 0, lines: 0)
     }
 
-    public init() {
-        self.init(Node())
+    func summarize(_ chunk: Chunk) -> RopeSummary {
+        RopeSummary(
+            utf16: chunk.countUTF16(),
+            chars: chunk.countChars(),
+            lines: chunk.countLines()
+        )
     }
+}
 
+typealias Rope = Tree<RopeSummary>
+
+extension Rope {
     public init(_ string: String) {
         var b = Builder()
         b.push(string: string)
@@ -50,11 +46,33 @@ struct Rope {
         self.init(b.build())
     }
 
-    var count: Int {
-        return root.count
-    }
-
     mutating func append(_ string: String) {
         append(contentsOf: string)
+    }
+}
+
+extension Rope: RangeReplaceableCollection where Element == Character {
+    mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C: Collection, C.Element == Character {
+        subrange.lowerBound.validate(for: root)
+        subrange.upperBound.validate(for: root)
+
+        var b = Builder()
+        b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
+        b.push(string: String(newElements))
+        b.push(&root, slicedBy: Range(subrange.upperBound..<endIndex))
+        self.root = b.build()
+    }
+
+    // The deafult implementation calls append(_:) in a loop. This should be faster.
+    mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Character {
+        var b = Builder()
+        b.push(&root)
+        b.push(string: String(newElements))
+        self.root = b.build()
+    }
+
+    // override the default behavior
+    mutating func reserveCapacity(_ n: Int) {
+        // no-op
     }
 }

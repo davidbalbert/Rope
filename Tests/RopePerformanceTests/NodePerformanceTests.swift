@@ -10,12 +10,12 @@ import XCTest
 
 final class NodePerformanceTests: XCTestCase {
     func testUpdateInPlace() {
-        let n = Rope.Node(String(repeating: "a", count: 1_000_000))
+        let n = Rope.Node(Chunk(String(repeating: "a", count: 1_000_000)))
 
         self.measure(metrics: [XCTMemoryMetric()]) {
             for _ in 0..<10_000_000 {
-                n.withMutableLeaf { s in
-                    s.replaceSubrange(..<s.index(after: s.startIndex), with: "b")
+                n.withMutableLeaf { chunk in
+                    chunk.string.replaceSubrange(..<chunk.index(after: chunk.startIndex), with: "b")
                 }
             }
         }

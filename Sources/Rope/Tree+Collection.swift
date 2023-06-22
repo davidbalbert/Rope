@@ -1,38 +1,25 @@
 //
-//  Rope+Collection.swift
-//  
+//  Tree+Collection.swift
+//
 //
 //  Created by David Albert on 6/12/23.
 //
 
 import Foundation
 
-extension Rope {
-    struct PathElement {
-        // An index is valid only if it's root present and it's mutation
-        // count is equal to the root's mutation count. If both of those
-        // are true, we're guaranteed that the path is valid, so we can
-        // unowned instead of weak references for the nodes.
-        unowned var node: Node
-        var slot: Int // child index
-
-        var child: Node {
-            node.children[slot]
-        }
-    }
-
+extension Tree {
     struct Index {
         var nodeIndex: NodeIndex
 
-        init(startOf rope: Rope) {
+        init(startOf rope: Tree) {
             self.nodeIndex = NodeIndex(startOf: rope.root)
         }
 
-        init(endOf rope: Rope) {
+        init(endOf rope: Tree) {
             self.nodeIndex = NodeIndex(endOf: rope.root)
         }
 
-        init(offsetBy offset: Int, in rope: Rope) {
+        init(offsetBy offset: Int, in rope: Tree) {
             self.nodeIndex = NodeIndex(offsetBy: offset, in: rope.root)
         }
 
@@ -44,7 +31,7 @@ extension Rope {
             self.nodeIndex.formPredecessor()
         }
 
-        var value: Character? {
+        var value: Leaf.Element? {
             nodeIndex.value
         }
 
@@ -58,27 +45,27 @@ extension Rope {
     }
 }
 
-extension Rope.Index: Comparable {
-    static func < (left: Rope.Index, right: Rope.Index) -> Bool {
+extension Tree.Index: Comparable {
+    static func < (left: Tree.Index, right: Tree.Index) -> Bool {
         left.nodeIndex < right.nodeIndex        
     }
 
-    static func == (left: Rope.Index, right: Rope.Index) -> Bool {
+    static func == (left: Tree.Index, right: Tree.Index) -> Bool {
         left.nodeIndex == right.nodeIndex
     }
 }
 
-extension Rope: BidirectionalCollection {
+extension Tree: BidirectionalCollection {
     struct Iterator: IteratorProtocol {
-        let rope: Rope // retain rope to make sure it doesn't get dealocated during iteration
+        let rope: Tree // retain rope to make sure it doesn't get dealocated during iteration
         var index: Index
 
-        init(rope: Rope) {
+        init(rope: Tree) {
             self.rope = rope
             self.index = rope.startIndex
         }
 
-        mutating func next() -> Character? {
+        mutating func next() -> Leaf.Element? {
             guard let c = index.value else { return nil }
             index.formSuccessor()
             return c
@@ -133,12 +120,12 @@ extension Rope: BidirectionalCollection {
         i.formSuccessor()
     }
 
-    subscript(index: Index) -> Character {
+    subscript(index: Index) -> Leaf.Element {
         index.validate(for: root)
         return index.value!
     }
 
-    subscript(offset: Int) -> Character {
+    subscript(offset: Int) -> Leaf.Element {
         // Index(offsetBy:in:) will let you create an index that's == endIndex,
         // but we don't want to allow that for subscripting.
         precondition(offset < count, "Index out of bounds")
@@ -146,7 +133,7 @@ extension Rope: BidirectionalCollection {
     }
 
     // Does not actually mutate
-    subscript(bounds: Range<Index>) -> Rope {
+    subscript(bounds: Range<Index>) -> Tree {
         bounds.lowerBound.validate(for: root)
         bounds.upperBound.validate(for: root)
 
@@ -154,10 +141,10 @@ extension Rope: BidirectionalCollection {
 
         var b = Builder()
         b.push(&r, slicedBy: Range(bounds))
-        return Rope(b.build())
+        return Tree(b.build())
     }
 
-    subscript(offsetRange: Range<Int>) -> Rope {
+    subscript(offsetRange: Range<Int>) -> Tree {
         precondition(offsetRange.lowerBound >= 0, "Index out of bounds")
         precondition(offsetRange.upperBound <= count, "Index out of bounds")
 
@@ -165,32 +152,6 @@ extension Rope: BidirectionalCollection {
 
         var b = Builder()
         b.push(&r, slicedBy: offsetRange)
-        return Rope(b.build())
-    }
-}
-
-extension Rope: RangeReplaceableCollection {
-    mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, C.Element == Character {
-        subrange.lowerBound.validate(for: root)
-        subrange.upperBound.validate(for: root)
-
-        var b = Builder()
-        b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
-        b.push(string: String(newElements))
-        b.push(&root, slicedBy: Range(subrange.upperBound..<endIndex))
-        self.root = b.build()
-    }
-
-    // The deafult implementation calls append(_:) in a loop. This should be faster.
-    mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Character {
-        var b = Builder()
-        b.push(&root)
-        b.push(string: String(newElements))
-        self.root = b.build()
-    }
-
-    // override the default behavior
-    mutating func reserveCapacity(_ n: Int) {
-        // no-op
+        return Tree(b.build())
     }
 }
