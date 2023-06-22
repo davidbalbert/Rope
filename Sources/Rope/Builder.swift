@@ -33,8 +33,6 @@ extension Tree {
                     if !lastNode.isUndersized && !n.isUndersized {
                         stack[stack.count - 1].append((n, isUnique))
                     } else if n.height == 0 { // lastNode and n are both leafs
-                        // TODO: there should be a bump in mutation count somewhere in here.
-
                         // This is here (rather than in the pattern match in the else if) because
                         // we can't do `if (var lastNode, let lastNodeIsUnique)`, and if they're both
                         // var, then we get a warning.
@@ -172,8 +170,6 @@ extension Tree.Builder where Summary == RopeSummary {
         } else {
             var i = s.startIndex
             while i < s.endIndex {
-                // TODO: we could pick a better length, e.g. by looking for the next
-                // newline.
                 var substring = s[i...]
                 let n = substring.utf8.count
 
