@@ -119,8 +119,7 @@ extension Tree {
 
         mutating func push(leaf: Leaf, slicedBy range: Range<Int>) {
             let start = leaf.index(leaf.startIndex, offsetBy: range.lowerBound)
-            // TODO: after everything's working again, change the end calculation to start at start rather than leaf.startIndex
-            let end = leaf.index(leaf.startIndex, offsetBy: range.upperBound)
+            let end = leaf.index(start, offsetBy: range.upperBound - range.lowerBound)
 
             push(leaf: leaf[start..<end])
         }
