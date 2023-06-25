@@ -15,7 +15,6 @@ final class NodePerformanceTests: XCTestCase {
         self.measure(metrics: [XCTMemoryMetric()]) {
             for _ in 0..<10_000_000 {
                 n.leaf.string.replaceSubrange(..<n.leaf.index(after: n.leaf.startIndex), with: "b")
-                }
             }
         }
     }
