@@ -43,9 +43,7 @@ extension Tree {
                             stack[stack.count - 1][stack[stack.count - 1].count - 1] = (lastNode, true)
                         }
 
-                        let newLeaf = lastNode.withMutableLeaf { leaf in
-                            leaf.push(possiblySplitting: n.leaf)
-                        }
+                        let newLeaf = lastNode.leaf.push(possiblySplitting: n.leaf)
 
                         lastNode.mutationCount &+= 1
                         lastNode.count = lastNode.leaf.count
@@ -101,10 +99,7 @@ extension Tree {
 
                     let childRange = 0..<node.children[i].count
                     let intersection = childRange.clamped(to: range.offset(by: -offset))
-
-                    node.withMutableChildren { children in
-                        push(&children[i], slicedBy: intersection)
-                    }
+                    push(&node.children[i], slicedBy: intersection)
                     offset += node.children[i].count
                 }
             }
