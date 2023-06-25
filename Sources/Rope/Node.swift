@@ -18,26 +18,34 @@ extension BTree {
         var children: [Node]
         var leaf: Leaf
 
-        var mutationCount: Int
+        var mutationCount: Int = 0
 
         #if DEBUG
         var cloneCount: Int = 0
         #endif
 
-        var isEmpty: Bool {
-            count == 0
+        init(_ leaf: Leaf) {
+            self.height = 0
+            self.count = leaf.count
+            self.children = []
+            self.leaf = leaf
         }
 
-        init(height: Int, count: Int, children: [Node], leaf: Leaf) {
+        init(_ children: [Node]) {
+            assert(1 <= children.count && children.count <= BTree.maxChild)
+            let height = children[0].height + 1
+            var count = 0
+
+            for child in children {
+                assert(child.height + 1 == height)
+                assert(!child.isUndersized)
+                count += child.count
+            }
+
             self.height = height
-            self.mutationCount = 0
             self.count = count
             self.children = children
-            self.leaf = leaf
-
-            #if DEBUG
-            self.cloneCount = 0
-            #endif
+            self.leaf = Leaf()
         }
 
         init(cloning node: Node) {
@@ -52,18 +60,8 @@ extension BTree {
             #endif
         }
 
-        convenience init(_ children: [Node]) {
-            assert(1 <= children.count && children.count <= BTree.maxChild)
-            let height = children[0].height + 1
-            var count = 0
-
-            for child in children {
-                assert(child.height + 1 == height)
-                assert(!child.isUndersized)
-                count += child.count
-            }
-
-            self.init(height: height, count: count, children: children, leaf: Leaf())
+        convenience init() {
+            self.init(Leaf())
         }
 
         convenience init<C>(_ children: C) where C: Sequence, C.Element == Node {
@@ -84,12 +82,8 @@ extension BTree {
             }
         }
 
-        convenience init(_ leaf: Leaf) {
-            self.init(height: 0, count: leaf.count, children: [], leaf: leaf)
-        }
-
-        convenience init() {
-            self.init(Leaf())
+        var isEmpty: Bool {
+            count == 0
         }
 
         var isLeaf: Bool {
