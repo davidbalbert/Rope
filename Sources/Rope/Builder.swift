@@ -7,7 +7,7 @@
 
 import Foundation
 
-extension Tree {
+extension BTree {
     struct Builder {
         typealias PartialTree = (node: Node, isUnique: Bool)
 
@@ -56,7 +56,7 @@ extension Tree {
                         let c1 = lastNode.children
                         let c2 = n.children
                         let count = c1.count + c2.count
-                        if count <= Tree.maxChild {
+                        if count <= BTree.maxChild {
                             stack[stack.count - 1].append((Node(c1 + c2), true))
                         } else {
                             let split = count / 2
@@ -66,7 +66,7 @@ extension Tree {
                         }
                     }
 
-                    if stack[stack.count - 1].count < Tree.maxChild {
+                    if stack[stack.count - 1].count < BTree.maxChild {
                         break
                     }
 

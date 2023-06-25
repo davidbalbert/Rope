@@ -1,5 +1,5 @@
 //
-//  Tree.swift
+//  BTree.swift
 //  
 //
 //  Created by David Albert on 6/2/23.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Tree<Summary> where Summary: SummaryProtocol {
+struct BTree<Summary> where Summary: SummaryProtocol {
     static var minChild: Int { 4 }
     static var maxChild: Int { 8 }
 
@@ -16,14 +16,14 @@ struct Tree<Summary> where Summary: SummaryProtocol {
 
     var root: Node
 
-    static func + (_ left: Tree, _ right: Tree) -> Tree {
+    static func + (_ left: BTree, _ right: BTree) -> BTree {
         var l = left.root
         var r = right.root
 
         var b = Builder()
         b.push(&l)
         b.push(&r)
-        return Tree(b.build())
+        return BTree(b.build())
     }
 
     init(_ root: Node) {

@@ -176,4 +176,8 @@ final class RopeTests: XCTestCase {
         XCTAssert(isKnownUniquelyReferenced(&r1.root))
         XCTAssert(isKnownUniquelyReferenced(&r2.root))
     }
+
+    func testSummarizeLines() {
+        
+    }
 }

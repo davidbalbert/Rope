@@ -35,7 +35,7 @@ struct RopeSummary: SummaryProtocol {
     }
 }
 
-typealias Rope = Tree<RopeSummary>
+typealias Rope = BTree<RopeSummary>
 
 extension Rope {
     mutating func append(_ string: String) {

@@ -7,7 +7,7 @@
 
 import Foundation
 
-extension Tree {
+extension BTree {
     final class Node {
         typealias Leaf = Summary.Leaf
 
@@ -53,7 +53,7 @@ extension Tree {
         }
 
         convenience init(_ children: [Node]) {
-            assert(1 <= children.count && children.count <= Tree.maxChild)
+            assert(1 <= children.count && children.count <= BTree.maxChild)
             let height = children[0].height + 1
             var count = 0
 
@@ -74,7 +74,7 @@ extension Tree {
             let count = leftChildren.count + rightChildren.count
             let children = [AnySequence(leftChildren), AnySequence(rightChildren)].joined()
 
-            if count <= Tree.maxChild {
+            if count <= BTree.maxChild {
                 self.init(children)
             } else {
                 let split = count / 2

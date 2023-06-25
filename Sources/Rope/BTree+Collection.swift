@@ -1,5 +1,5 @@
 //
-//  Tree+Collection.swift
+//  BTree+Collection.swift
 //
 //
 //  Created by David Albert on 6/12/23.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-extension Tree: BidirectionalCollection {
+extension BTree: BidirectionalCollection {
     struct Iterator: IteratorProtocol {
         let root: Node // retain the root to make sure it doesn't get dealocated during iteration
         var index: Index
@@ -85,7 +85,7 @@ extension Tree: BidirectionalCollection {
     }
 
     // Does not actually mutate
-    subscript(bounds: Range<Index>) -> Tree {
+    subscript(bounds: Range<Index>) -> BTree {
         bounds.lowerBound.validate(for: root)
         bounds.upperBound.validate(for: root)
 
@@ -93,10 +93,10 @@ extension Tree: BidirectionalCollection {
 
         var b = Builder()
         b.push(&r, slicedBy: Range(bounds))
-        return Tree(b.build())
+        return BTree(b.build())
     }
 
-    subscript(offsetRange: Range<Int>) -> Tree {
+    subscript(offsetRange: Range<Int>) -> BTree {
         precondition(offsetRange.lowerBound >= 0, "Index out of bounds")
         precondition(offsetRange.upperBound <= count, "Index out of bounds")
 
@@ -104,11 +104,11 @@ extension Tree: BidirectionalCollection {
 
         var b = Builder()
         b.push(&r, slicedBy: offsetRange)
-        return Tree(b.build())
+        return BTree(b.build())
     }
 }
 
-extension Tree: RangeReplaceableCollection {
+extension BTree: RangeReplaceableCollection {
     mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C: Collection, C.Element == Element {
         subrange.lowerBound.validate(for: root)
         subrange.upperBound.validate(for: root)

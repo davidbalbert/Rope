@@ -1,5 +1,5 @@
 //
-//  Tree+Index.swift
+//  BTree+Index.swift
 //
 //
 //  Created by David Albert on 6/13/23.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-extension Tree {
+extension BTree {
     struct PathElement {
         // An index is valid only if it's root present and it's mutation
         // count is equal to the root's mutation count. If both of those
@@ -182,13 +182,13 @@ extension Tree {
     }
 }
 
-extension Tree.Index: Comparable {
-    static func < (left: Tree.Index, right: Tree.Index) -> Bool {
+extension BTree.Index: Comparable {
+    static func < (left: BTree.Index, right: BTree.Index) -> Bool {
         left.validate(right)
         return left.position < right.position
     }
 
-    static func == (left: Tree.Index, right: Tree.Index) -> Bool {
+    static func == (left: BTree.Index, right: BTree.Index) -> Bool {
         left.validate(right)
         return left.position == right.position
     }
