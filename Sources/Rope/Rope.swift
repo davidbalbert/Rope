@@ -26,7 +26,7 @@ struct RopeSummary: BTreeSummary {
         RopeSummary(utf16: 0, chars: 0, lines: 0)
     }
 
-    func summarize(_ chunk: Chunk) -> RopeSummary {
+    static func summarize(_ chunk: Chunk) -> RopeSummary {
         RopeSummary(
             utf16: chunk.countUTF16(),
             chars: chunk.countChars(),
