@@ -8,7 +8,7 @@
 import Foundation
 
 protocol BTreeSummary {
-    associatedtype Leaf: BTreeElement
+    associatedtype Leaf: BTreeLeaf
 
     // A subset of AdditiveArithmetic
     static func += (lhs: inout Self, rhs: Self)
