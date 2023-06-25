@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Chunk: BTreeLeaf {
+struct Chunk: BTreeElement {
     static func makeLeavesFrom(contentsOf elements: some Sequence<Character>) -> UnfoldSequence<Chunk, String.Index> {
         var s = String(elements)
         s.makeContiguousUTF8()
