@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct BTree<Summary> where Summary: BtreeSummary {
+struct BTree<Summary> where Summary: BTreeSummary {
     static var minChild: Int { 4 }
     static var maxChild: Int { 8 }
 
