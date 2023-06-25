@@ -1,13 +1,13 @@
 //
 //  BTree.swift
-//  
+//
 //
 //  Created by David Albert on 6/2/23.
 //
 
 import Foundation
 
-struct BTree<Summary> where Summary: SummaryProtocol {
+struct BTree<Summary> where Summary: BtreeSummary {
     static var minChild: Int { 4 }
     static var maxChild: Int { 8 }
 

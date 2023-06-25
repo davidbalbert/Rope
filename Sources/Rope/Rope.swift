@@ -11,7 +11,7 @@ import Foundation
 // internal nodes are order 8: 4...8 children (see Tree.swift)
 // leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024 (see Chunk.swift)
 
-struct RopeSummary: SummaryProtocol {
+struct RopeSummary: BTreeSummary {
     var utf16: Int
     var chars: Int
     var lines: Int

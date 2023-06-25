@@ -1,5 +1,5 @@
 //
-//  LeafProtocol.swift
+//  BTreeElement.swift
 //
 //
 //  Created by David Albert on 6/22/23.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol LeafProtocol: BidirectionalCollection where SubSequence == Self {
+protocol BTreeElement: BidirectionalCollection where SubSequence == Self {
     associatedtype Leaves: Sequence<Self>
     static func makeLeavesFrom(contentsOf elements: some Sequence<Element>) -> Leaves
 

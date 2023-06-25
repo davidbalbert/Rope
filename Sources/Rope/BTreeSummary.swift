@@ -1,5 +1,5 @@
 //
-//  SummaryProtocol.swift
+//  BtreeSummary.swift
 //
 //
 //  Created by David Albert on 6/22/23.
@@ -7,8 +7,8 @@
 
 import Foundation
 
-protocol SummaryProtocol {
-    associatedtype Leaf: LeafProtocol
+protocol BTreeSummary {
+    associatedtype Leaf: BTreeElement
 
     // A subset of AdditiveArithmetic
     static func += (lhs: inout Self, rhs: Self)
