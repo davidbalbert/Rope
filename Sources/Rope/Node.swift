@@ -77,6 +77,8 @@ extension BTree {
 
         convenience init<C1, C2>(children leftChildren: C1, mergedWith rightChildren: C2) where C1: Collection, C2: Collection, C1.Element == Node, C1.Element == C2.Element {
             let count = leftChildren.count + rightChildren.count
+            assert(count <= BTree.maxChild*2)
+
             let children = [AnySequence(leftChildren), AnySequence(rightChildren)].joined()
 
             if count <= BTree.maxChild {
