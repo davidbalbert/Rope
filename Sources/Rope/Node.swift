@@ -15,8 +15,8 @@ extension BTree {
         var count: Int // in base units
 
         // children and leaf are mutually exclusive
-        var children: [Node]
-        var leaf: Leaf
+        var _children: [Node]
+        var _leaf: Leaf
         var summary: Summary
 
         var mutationCount: Int = 0
@@ -25,11 +25,33 @@ extension BTree {
         var cloneCount: Int = 0
         #endif
 
+        var children: [Node] {
+            _read {
+                guard !isLeaf else { fatalError("children called on a leaf node") }
+                yield _children
+            }
+            _modify {
+                guard !isLeaf else { fatalError("children called on a leaf node") }
+                yield &_children
+            }
+        }
+
+        var leaf: Leaf {
+            _read {
+                guard isLeaf else { fatalError("leaf called on a non-leaf node") }
+                yield _leaf
+            }
+            _modify {
+                guard isLeaf else { fatalError("leaf called on a non-leaf node") }
+                yield &_leaf
+            }
+        }
+
         init(_ leaf: Leaf) {
             self.height = 0
             self.count = leaf.count
-            self.children = []
-            self.leaf = leaf
+            self._children = []
+            self._leaf = leaf
             self.summary = Summary(summarizing: leaf)
         }
 
@@ -49,8 +71,8 @@ extension BTree {
 
             self.height = height
             self.count = count
-            self.children = children
-            self.leaf = Leaf()
+            self._children = children
+            self._leaf = Leaf()
             self.summary = summary
         }
 
@@ -58,8 +80,8 @@ extension BTree {
             self.height = node.height
             self.mutationCount = node.mutationCount
             self.count = node.count
-            self.children = node.children
-            self.leaf = node.leaf
+            self._children = node._children
+            self._leaf = node._leaf
             self.summary = node.summary
 
             #if DEBUG
