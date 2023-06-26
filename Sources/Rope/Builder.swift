@@ -32,7 +32,7 @@ extension BTree {
                 } else if var (lastNode, _) = stack.last?.last, lastNode.height == n.height {
                     if !lastNode.isUndersized && !n.isUndersized {
                         stack[stack.count - 1].append((n, isUnique))
-                    } else if n.height == 0 { // lastNode and n are both leafs
+                    } else if n.isLeaf { // lastNode and n are both leafs
                         // This is here (rather than in the pattern match in the else if) because
                         // we can't do `if (var lastNode, let lastNodeIsUnique)`, and if they're both
                         // var, then we get a warning.
@@ -47,6 +47,7 @@ extension BTree {
 
                         lastNode.mutationCount &+= 1
                         lastNode.count = lastNode.leaf.count
+                        lastNode.summary = Summary(summarizing: lastNode.leaf)
 
                         if let newLeaf {
                             assert(!newLeaf.isUndersized)
@@ -84,7 +85,8 @@ extension BTree {
             }
 
             if range == 0..<node.count {
-                push(&node)
+                var n = node.clone()
+                push(&n)
                 return
             }
 

@@ -19,9 +19,9 @@ struct Chunk: BTreeLeaf {
                 return nil
             }
 
-            if s.utf8.count <= Chunk.maxSize {
+            if substring.utf8.count <= Chunk.maxSize {
                 i = substring.endIndex
-                return Chunk(s)
+                return Chunk(substring)
             } else {
                 let n = substring.utf8.count
 
@@ -31,7 +31,7 @@ struct Chunk: BTreeLeaf {
 
                     let nl = UInt8(ascii: "\n")
                     let lineBoundary = substring.withUTF8 { buf in
-                        buf[minSplit..<maxSplit].firstIndex(of: nl)
+                        buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
                     }
 
                     let offset = lineBoundary ?? maxSplit
@@ -80,13 +80,17 @@ struct Chunk: BTreeLeaf {
         string.utf16.count
     }
 
-    func countLines() -> Int {
+    func countScalars() -> Int {
+        string.unicodeScalars.count
+    }
+
+    func countNewlines() -> Int {
         assert(string.isContiguousUTF8)
 
         let nl = UInt8(ascii: "\n")
         var count = 0
 
-        // countLines isn't mutating, so we can't use withUTF8.
+        // countNewlines isn't mutating, so we can't use withUTF8.
         // That said, we're guaranteed to have a contiguous utf8
         // string, so this should always succeed.
         string.utf8.withContiguousStorageIfAvailable { buf in
@@ -116,7 +120,7 @@ struct Chunk: BTreeLeaf {
 
             let nl = UInt8(ascii: "\n")
             let lineBoundary = string.withUTF8 { buf in
-                buf[minSplit..<maxSplit].firstIndex(of: nl)
+                buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
             }
 
             let offset = lineBoundary ?? maxSplit

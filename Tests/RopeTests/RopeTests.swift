@@ -177,7 +177,171 @@ final class RopeTests: XCTestCase {
         XCTAssert(isKnownUniquelyReferenced(&r2.root))
     }
 
-    func testSummarizeLines() {
-        
+    func testSummarizeASCII() {
+        var r = Rope("foo\nbar\nbaz")
+
+        XCTAssertEqual(11, r.root.count)
+        XCTAssertEqual(11, r.root.summary.utf16)
+        XCTAssertEqual(11, r.root.summary.scalars)
+        XCTAssertEqual(11, r.root.summary.chars)
+        XCTAssertEqual(2, r.root.summary.newlines)
+
+        var i = r.index(r.startIndex, offsetBy: 5)
+        r.insert(contentsOf: "e", at: i)
+        XCTAssertEqual("foo\nbear\nbaz", String(r))
+
+        XCTAssertEqual(12, r.root.count)
+        XCTAssertEqual(12, r.root.summary.utf16)
+        XCTAssertEqual(12, r.root.summary.scalars)
+        XCTAssertEqual(12, r.root.summary.chars)
+        XCTAssertEqual(2, r.root.summary.newlines)
+
+        i = r.index(r.startIndex, offsetBy: 3)
+        r.remove(at: i)
+        XCTAssertEqual("foobear\nbaz", String(r))
+
+        XCTAssertEqual(11, r.root.count)
+        XCTAssertEqual(11, r.root.summary.utf16)
+        XCTAssertEqual(11, r.root.summary.scalars)
+        XCTAssertEqual(11, r.root.summary.chars)
+        XCTAssertEqual(1, r.root.summary.newlines)
+    }
+
+    func testSummarizeASCIISplit() {
+        let s = "foo\n"
+        let nbytes = Chunk.maxSize + 1
+        assert(nbytes % s.utf8.count == 0)
+
+        let n = nbytes / s.utf8.count
+
+        var r = Rope(String(repeating: s, count: n))
+        XCTAssertEqual(nbytes, r.root.count)
+        XCTAssertEqual(nbytes, r.root.summary.utf16)
+        XCTAssertEqual(nbytes, r.root.summary.scalars)
+        XCTAssertEqual(nbytes, r.root.summary.chars)
+        XCTAssertEqual(n, r.root.summary.newlines)
+
+        XCTAssertEqual(1, r.root.height)
+        XCTAssertEqual(2, r.root.children.count)
+
+        let c1bytes = nbytes/2 - 1 // Brittle. We'll see if this holds forever.
+        let c2bytes = nbytes/2 + 1
+
+        let c1lines = n/2 - 1
+        let c2lines = n/2 + 1
+
+        XCTAssertEqual(c1bytes, r.root.children[0].count)
+        XCTAssertEqual(c1bytes, r.root.children[0].summary.utf16)
+        XCTAssertEqual(c1bytes, r.root.children[0].summary.scalars)
+        XCTAssertEqual(c1bytes, r.root.children[0].summary.chars)
+        XCTAssertEqual(c1lines, r.root.children[0].summary.newlines)
+
+        XCTAssertEqual(c2bytes, r.root.children[1].count)
+        XCTAssertEqual(c2bytes, r.root.children[1].summary.utf16)
+        XCTAssertEqual(c2bytes, r.root.children[1].summary.scalars)
+        XCTAssertEqual(c2bytes, r.root.children[1].summary.chars)
+        XCTAssertEqual(c2lines, r.root.children[1].summary.newlines)
+
+        let i = r.index(r.startIndex, offsetBy: c1bytes)
+        r.insert(contentsOf: "e", at: i)
+        XCTAssertEqual(nbytes + 1, r.root.count)
+        XCTAssertEqual(nbytes + 1, r.root.summary.utf16)
+        XCTAssertEqual(nbytes + 1, r.root.summary.chars)
+        XCTAssertEqual(n, r.root.summary.newlines)
+
+        XCTAssertEqual(1, r.root.height)
+        XCTAssertEqual(2, r.root.children.count)
+
+        XCTAssertEqual(c1bytes + 1, r.root.children[0].count)
+        XCTAssertEqual(c1bytes + 1, r.root.children[0].summary.utf16)
+        XCTAssertEqual(c1bytes + 1, r.root.children[0].summary.scalars)
+        XCTAssertEqual(c1bytes + 1, r.root.children[0].summary.chars)
+        XCTAssertEqual(c1lines, r.root.children[0].summary.newlines)
+
+        XCTAssertEqual(c2bytes, r.root.children[1].count)
+        XCTAssertEqual(c2bytes, r.root.children[1].summary.utf16)
+        XCTAssertEqual(c2bytes, r.root.children[1].summary.scalars)
+        XCTAssertEqual(c2bytes, r.root.children[1].summary.chars)
+        XCTAssertEqual(c2lines, r.root.children[1].summary.newlines)
+    }
+
+    func testSummarizeASCIIHuge() {
+        var r = Rope(String(repeating: "foo\n", count: 200_000))
+        XCTAssertEqual(800_000, r.root.count)
+        XCTAssertEqual(800_000, r.root.summary.utf16)
+        XCTAssertEqual(800_000, r.root.summary.scalars)
+        XCTAssertEqual(800_000, r.root.summary.chars)
+        XCTAssertEqual(200_000, r.root.summary.newlines)
+
+        let i = r.index(r.startIndex, offsetBy: 400_000)
+        r.insert(contentsOf: "e", at: i)
+        XCTAssertEqual(String(repeating: "foo\n", count: 100_000) + "e" + String(repeating: "foo\n", count: 100_000), String(r))
+
+        XCTAssertEqual(800_001, r.root.count)
+        XCTAssertEqual(800_001, r.root.summary.utf16)
+        XCTAssertEqual(800_001, r.root.summary.scalars)
+        XCTAssertEqual(800_001, r.root.summary.chars)
+        XCTAssertEqual(200_000, r.root.summary.newlines)
+
+        let j = r.index(r.startIndex, offsetBy: 200_000)
+        r.insert(contentsOf: "\n", at: j)
+        XCTAssertEqual(800_002, r.root.count)
+        XCTAssertEqual(800_002, r.root.summary.utf16)
+        XCTAssertEqual(800_002, r.root.summary.scalars)
+        XCTAssertEqual(800_002, r.root.summary.chars)
+        XCTAssertEqual(200_001, r.root.summary.newlines)
+    }
+
+    func testSummarizeCombiningCharacters() {
+        var r = Rope("foo\u{0301}\nbar\nbaz") // "foó"
+        XCTAssertEqual(13, r.root.count)
+        XCTAssertEqual(12, r.root.summary.utf16)
+        XCTAssertEqual(12, r.root.summary.scalars)
+        XCTAssertEqual(11, r.root.summary.chars)
+        XCTAssertEqual(2, r.root.summary.newlines)
+
+        // this offset is in Characters, not UTF-8 code units or code points.
+        // The "a" should be inserted after the "é".
+        let i = r.index(r.startIndex, offsetBy: 3)
+        r.insert(contentsOf: "a", at: i)
+        XCTAssertEqual("fooa\u{0301}\nbar\nbaz", String(r))
+
+        XCTAssertEqual(14, r.root.count)
+        XCTAssertEqual(13, r.root.summary.utf16)
+        XCTAssertEqual(13, r.root.summary.scalars)
+        XCTAssertEqual(12, r.root.summary.chars)
+        XCTAssertEqual(2, r.root.summary.newlines)
+    }
+
+    func testSummarizeCombiningCharactersSplit() {
+        // TODO
+    }
+
+    func testSummarizeCombiningCharactersHuge() {
+        // TODO
+    }
+
+    func testSummarizeOutsideBMP() {
+        // TODO
+    }
+
+    func testSummarizeOutsideBMPSplit() {
+        // TODO
+    }
+
+    func testSummarizeOutsideBMPHuge() {
+        // TODO
+    }
+
+    func testSummarizeMultiCodepointGraphemes() {
+        // TODO
+    }
+
+    func testSummarizeMultiCodepointGraphemesSplit() {
+        // TODO
+    }
+
+    func testSummarizeMultiCodepointGraphemesHuge() {
+        // TODO
     }
 }

@@ -17,6 +17,7 @@ extension BTree {
         // children and leaf are mutually exclusive
         var children: [Node]
         var leaf: Leaf
+        var summary: Summary
 
         var mutationCount: Int = 0
 
@@ -29,23 +30,28 @@ extension BTree {
             self.count = leaf.count
             self.children = []
             self.leaf = leaf
+            self.summary = Summary(summarizing: leaf)
         }
 
         init(_ children: [Node]) {
             assert(1 <= children.count && children.count <= BTree.maxChild)
             let height = children[0].height + 1
             var count = 0
+            var summary = Summary.zero
+
 
             for child in children {
                 assert(child.height + 1 == height)
                 assert(!child.isUndersized)
                 count += child.count
+                summary += child.summary
             }
 
             self.height = height
             self.count = count
             self.children = children
             self.leaf = Leaf()
+            self.summary = summary
         }
 
         init(cloning node: Node) {
@@ -54,6 +60,7 @@ extension BTree {
             self.count = node.count
             self.children = node.children
             self.leaf = node.leaf
+            self.summary = node.summary
 
             #if DEBUG
             self.cloneCount = node.cloneCount + 1
@@ -158,10 +165,12 @@ extension BTree {
             mutationCount &+= 1
 
             let newLeaf = leaf.push(possiblySplitting: other.leaf)
+            count = leaf.count
+            summary = Summary(summarizing: leaf)
+
             if let newLeaf {
                 return Node([self, Node(newLeaf)])
             } else {
-                count = leaf.count
                 return self
             }
         }
