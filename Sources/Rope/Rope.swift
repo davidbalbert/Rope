@@ -12,6 +12,8 @@ import Foundation
 // leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024 (see Chunk.swift)
 
 struct Rope {
+    typealias Builder = BTree<Summary>.Builder
+
     var btree: BTree<Summary>
 
     init() {
@@ -137,8 +139,9 @@ extension Rope: RangeReplaceableCollection {
         subrange.lowerBound.validate(for: btree)
         subrange.upperBound.validate(for: btree)
 
-        var b = BTree<Summary>.Builder()
+        var b = Builder()
         b.push(&btree.root, slicedBy: Range(startIndex..<subrange.lowerBound))
+        // TODO: fix this once we have metrics
         // b.push(string: newElements)
         b.push(utf8: newElements)
         b.push(&btree.root, slicedBy: Range(subrange.upperBound..<endIndex))
@@ -147,8 +150,9 @@ extension Rope: RangeReplaceableCollection {
 
     // The deafult implementation calls append(_:) in a loop. This should be faster.
     mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Element {
-        var b = BTree<Summary>.Builder()
+        var b = Builder()
         b.push(&btree.root)
+        // TODO: fix this once we have metrics
         b.push(utf8: newElements)
         self.btree = BTree(b.build())
     }
@@ -165,7 +169,7 @@ extension Rope: RangeReplaceableCollection {
 //    }
 //}
 
-extension BTree<Rope.Summary>.Builder {
+extension Rope.Builder {
     mutating func push(string: some Sequence<Character>) {
         var string = String(string)
         string.makeContiguousUTF8()
