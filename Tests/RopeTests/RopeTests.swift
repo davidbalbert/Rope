@@ -17,6 +17,14 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(99, r[2])
     }
 
+    func testMany() {
+        var r = Rope()
+        r.append(contentsOf: Array(repeating: 97, count: 1_000_000))
+        XCTAssertEqual(97, r[0])
+        XCTAssertEqual(97, r[500_000])
+        XCTAssertEqual(97, r[999_999])
+    }
+
 //    func testAppendCharacter() {
 //        var rope = Rope()
 //        rope.append("a")
