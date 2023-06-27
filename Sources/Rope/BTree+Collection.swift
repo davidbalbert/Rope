@@ -7,34 +7,18 @@
 
 import Foundation
 
-extension BTree: BidirectionalCollection {
-    struct Iterator: IteratorProtocol {
-        let root: Node // retain the root to make sure it doesn't get dealocated during iteration
-        var index: Index
-
-        init(root: Node) {
-            self.root = root
-            self.index = Index(startOf: root)
-        }
-
-        mutating func next() -> Leaf.Element? {
-            guard let c = index.value else { return nil }
-            index.formSuccessor()
-            return c
-        }
-    }
-
-    func makeIterator() -> Iterator {
-        Iterator(root: root)
-    }
-
-    var startIndex: Index {
-        Index(startOf: root)
-    }
-
-    var endIndex: Index {
-        Index(endOf: root)
-    }
+//extension BTree: BidirectionalCollection where BTree.BaseIterator: IteratorProtocol {
+//    func makeIterator() -> Iterator {
+//        Iterator(root: root)
+//    }
+//
+//    var startIndex: Index {
+//        Index(startOf: root)
+//    }
+//
+//    var endIndex: Index {
+//        Index(endOf: root)
+//    }
 
     // TODO: we should also overwrite the default implementation of
     // the index(_:offsetBy:) and formIndex(_:offsetBy:) family of
@@ -48,88 +32,62 @@ extension BTree: BidirectionalCollection {
     // Collection and BidirectionalCollection. I bet we'll want
     // to override most things.
 
-    func index(before i: Index) -> Index {
-        i.validate(for: root)
-        var i = i
-        i.formPredecessor()
-        return i
-    }
+//    func index(before i: Index) -> Index {
+//        i.validate(for: root)
+//        var i = i
+//        i.formPredecessor()
+//        return i
+//    }
+//
+//    func index(after i: Index) -> Index {
+//        i.validate(for: root)
+//        var i = i
+//        i.formSuccessor()
+//        return i
+//    }
+//
+//    func formIndex(before i: inout Index) {
+//        i.validate(for: root)
+//        i.formPredecessor()
+//    }
+//
+//    func formIndex(after i: inout Index) {
+//        i.validate(for: root)
+//        i.formSuccessor()
+//    }
 
-    func index(after i: Index) -> Index {
-        i.validate(for: root)
-        var i = i
-        i.formSuccessor()
-        return i
-    }
-
-    func formIndex(before i: inout Index) {
-        i.validate(for: root)
-        i.formPredecessor()
-    }
-
-    func formIndex(after i: inout Index) {
-        i.validate(for: root)
-        i.formSuccessor()
-    }
-
-    subscript(index: Index) -> Leaf.Element {
-        index.validate(for: root)
-        return index.value!
-    }
-
-    subscript(offset: Int) -> Leaf.Element {
-        // Index(offsetBy:in:) will let you create an index that's == endIndex,
-        // but we don't want to allow that for subscripting.
-        precondition(offset < count, "Index out of bounds")
-        return Index(offsetBy: offset, in: root).value!
-    }
+//    subscript(index: Index) -> Leaf.Element {
+//        index.validate(for: root)
+//        return index.value!
+//    }
+//
+//    subscript(offset: Int) -> Leaf.Element {
+//        // Index(offsetBy:in:) will let you create an index that's == endIndex,
+//        // but we don't want to allow that for subscripting.
+//        precondition(offset < count, "Index out of bounds")
+//        return Index(offsetBy: offset, in: root).value!
+//    }
 
     // Does not actually mutate
-    subscript(bounds: Range<Index>) -> BTree {
-        bounds.lowerBound.validate(for: root)
-        bounds.upperBound.validate(for: root)
+//    subscript(bounds: Range<Index>) -> BTree {
+//        bounds.lowerBound.validate(for: root)
+//        bounds.upperBound.validate(for: root)
+//
+//        var r = root
+//
+//        var b = Builder()
+//        b.push(&r, slicedBy: Range(bounds))
+//        return BTree(b.build())
+//    }
 
-        var r = root
-
-        var b = Builder()
-        b.push(&r, slicedBy: Range(bounds))
-        return BTree(b.build())
-    }
-
-    subscript(offsetRange: Range<Int>) -> BTree {
-        precondition(offsetRange.lowerBound >= 0, "Index out of bounds")
-        precondition(offsetRange.upperBound <= count, "Index out of bounds")
-
-        var r = root
-
-        var b = Builder()
-        b.push(&r, slicedBy: offsetRange)
-        return BTree(b.build())
-    }
-}
-
-extension BTree: RangeReplaceableCollection {
-    mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C: Collection, C.Element == Element {
-        subrange.lowerBound.validate(for: root)
-        subrange.upperBound.validate(for: root)
-
-        var b = Builder()
-        b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
-        b.push(contentsOf: newElements)
-        b.push(&root, slicedBy: Range(subrange.upperBound..<endIndex))
-        self.root = b.build()
-    }
-
-    // The deafult implementation calls append(_:) in a loop. This should be faster.
-    mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Element {
-        var b = Builder()
-        b.push(&root)
-        b.push(contentsOf: newElements)
-        self.root = b.build()
-    }
-
-    // override the default behavior
-    mutating func reserveCapacity(_ n: Int) {
-        // no-op
-    }
-}
+//    subscript(offsetRange: Range<Int>) -> BTree {
+//        precondition(offsetRange.lowerBound >= 0, "Index out of bounds")
+//        precondition(offsetRange.upperBound <= count, "Index out of bounds")
+//
+//        var r = root
+//
+//        var b = Builder()
+//        b.push(&r, slicedBy: offsetRange)
+//        return BTree(b.build())
+//    }
+//}

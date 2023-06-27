@@ -8,8 +8,8 @@
 import Foundation
 
 extension Range<Int> {
-    init<Summary>(_ treeRange: Range<BTree<Summary>.Index>) where Summary: BTreeSummary {
-        self.init(uncheckedBounds: (treeRange.lowerBound.position, treeRange.upperBound.position))
+    init(_ ropeRange: Range<Rope.Index>) {
+        self.init(uncheckedBounds: (ropeRange.lowerBound.cursor.position, ropeRange.upperBound.cursor.position))
     }
 }
 

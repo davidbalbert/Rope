@@ -12,7 +12,6 @@ struct BTree<Summary> where Summary: BTreeSummary {
     static var maxChild: Int { 8 }
 
     typealias Leaf = Summary.Leaf
-    typealias Element = Leaf.Element
 
     var root: Node
 
@@ -35,6 +34,10 @@ struct BTree<Summary> where Summary: BTreeSummary {
     }
 
     var count: Int {
-        return root.count
+        root.count
+    }
+
+    var isEmpty: Bool {
+        root.isEmpty
     }
 }

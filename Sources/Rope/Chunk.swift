@@ -8,57 +8,57 @@
 import Foundation
 
 struct Chunk: BTreeLeaf {
-    static func makeLeavesFrom(contentsOf elements: some Sequence<Character>) -> UnfoldSequence<Chunk, String.Index> {
-        var s = String(elements)
-        s.makeContiguousUTF8()
-
-        return sequence(state: s.startIndex) { i in
-            var substring = s[i...]
-
-            if substring.isEmpty {
-                return nil
-            }
-
-            if substring.utf8.count <= Chunk.maxSize {
-                i = substring.endIndex
-                return Chunk(substring)
-            } else {
-                let n = substring.utf8.count
-
-                if n > Chunk.maxSize {
-                    let minSplit = Chunk.minSize
-                    let maxSplit = Swift.min(Chunk.maxSize, n - Chunk.minSize)
-
-                    let nl = UInt8(ascii: "\n")
-                    let lineBoundary = substring.withUTF8 { buf in
-                        buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
-                    }
-
-                    let offset = lineBoundary ?? maxSplit
-                    let codepoint = substring.utf8.index(substring.startIndex, offsetBy: offset)
-                    // TODO: this is SPI. Hopefully it gets exposed soon.
-                    i = substring.unicodeScalars._index(roundingDown: codepoint)
-                } else {
-                    i = substring.endIndex
-                }
-
-                return Chunk(substring[..<i])
-            }
-        }
-    }
-
     // measured in base units
     static let minSize = 511
     static let maxSize = 1023
 
+//    static func from(contentsOf elements: some Sequence<Character>) -> UnfoldSequence<Chunk, String.Index> {
+//        var s = String(elements)
+//        s.makeContiguousUTF8()
+//
+//        return sequence(state: s.startIndex) { i in
+//            var substring = s[i...]
+//
+//            if substring.isEmpty {
+//                return nil
+//            }
+//
+//            if substring.utf8.count <= Chunk.maxSize {
+//                i = substring.endIndex
+//                return Chunk(substring)
+//            } else {
+//                let n = substring.utf8.count
+//
+//                if n > Chunk.maxSize {
+//                    let minSplit = Chunk.minSize
+//                    let maxSplit = Swift.min(Chunk.maxSize, n - Chunk.minSize)
+//
+//                    let nl = UInt8(ascii: "\n")
+//                    let lineBoundary = substring.withUTF8 { buf in
+//                        buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
+//                    }
+//
+//                    let offset = lineBoundary ?? maxSplit
+//                    let codepoint = substring.utf8.index(substring.startIndex, offsetBy: offset)
+//                    // TODO: this is SPI. Hopefully it gets exposed soon.
+//                    i = substring.unicodeScalars._index(roundingDown: codepoint)
+//                } else {
+//                    i = substring.endIndex
+//                }
+//
+//                return Chunk(substring[..<i])
+//            }
+//        }
+//    }
+
     var string: String
 
     init() {
-        self.string = ""
+        self.init("")
     }
 
-    init<S>(_ s: S) where S: Sequence, S.Element == Character {
-        var s = String(s)
+    init(_ elements: some Sequence<Character>) {
+        var s = String(elements)
         s.makeContiguousUTF8()
         assert(s.utf8.count <= Chunk.maxSize)
         self.string = s
@@ -70,38 +70,6 @@ struct Chunk: BTreeLeaf {
 
     var isUndersized: Bool {
         count < Chunk.minSize
-    }
-
-    func countChars() -> Int {
-        string.count
-    }
-
-    func countUTF16() -> Int {
-        string.utf16.count
-    }
-
-    func countScalars() -> Int {
-        string.unicodeScalars.count
-    }
-
-    func countNewlines() -> Int {
-        assert(string.isContiguousUTF8)
-
-        let nl = UInt8(ascii: "\n")
-        var count = 0
-
-        // countNewlines isn't mutating, so we can't use withUTF8.
-        // That said, we're guaranteed to have a contiguous utf8
-        // string, so this should always succeed.
-        string.utf8.withContiguousStorageIfAvailable { buf in
-            for c in buf {
-                if c == nl {
-                    count += 1
-                }
-            }
-        }
-
-        return count
     }
 
     mutating func push(possiblySplitting other: Chunk) -> Chunk? {
@@ -135,27 +103,55 @@ struct Chunk: BTreeLeaf {
         }
     }
 
-    var startIndex: String.Index {
-        string.startIndex
+    // This seems wrong. Can we get rid of it?
+    subscript(offset: Int) -> Character {
+        guard let i = string.utf8Index(at: offset).samePosition(in: string) else {
+            fatalError("invalid character offset")
+        }
+
+        return string[i]
     }
 
-    var endIndex: String.Index {
-        string.endIndex
+    subscript(bounds: Range<Int>) -> Chunk {
+        let start = string.utf8Index(at: bounds.lowerBound).samePosition(in: string.unicodeScalars)
+        let end = string.utf8Index(at: bounds.upperBound).samePosition(in: string.unicodeScalars)
+
+        guard let start, let end else {
+            fatalError("invalid unicode scalar offsets")
+        }
+
+        return Chunk(string[start..<end])
     }
 
-    func index(before i: String.Index) -> String.Index {
-        string.index(before: i)
+    func countChars() -> Int {
+        string.count
     }
 
-    func index(after i: String.Index) -> String.Index {
-        string.index(after: i)
+    func countUTF16() -> Int {
+        string.utf16.count
     }
 
-    subscript(index: String.Index) -> Character {
-        string[index]
+    func countScalars() -> Int {
+        string.unicodeScalars.count
     }
 
-    subscript(range: Range<String.Index>) -> Chunk {
-        Chunk(string[range])
+    func countNewlines() -> Int {
+        assert(string.isContiguousUTF8)
+
+        let nl = UInt8(ascii: "\n")
+        var count = 0
+
+        // countNewlines isn't mutating, so we can't use withUTF8.
+        // That said, we're guaranteed to have a contiguous utf8
+        // string, so this should always succeed.
+        string.utf8.withContiguousStorageIfAvailable { buf in
+            for c in buf {
+                if c == nl {
+                    count += 1
+                }
+            }
+        }
+
+        return count
     }
 }

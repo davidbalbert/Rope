@@ -113,10 +113,7 @@ extension BTree {
         }
 
         mutating func push(leaf: Leaf, slicedBy range: Range<Int>) {
-            let start = leaf.index(leaf.startIndex, offsetBy: range.lowerBound)
-            let end = leaf.index(start, offsetBy: range.upperBound - range.lowerBound)
-
-            push(leaf: leaf[start..<end])
+            push(leaf: leaf[range])
         }
 
         mutating func pop() -> PartialTree {
@@ -151,12 +148,6 @@ extension BTree {
                 }
 
                 return n
-            }
-        }
-
-        mutating func push<S>(contentsOf elements: S) where S: Sequence, S.Element == Element {
-            for leaf in Leaf.makeLeavesFrom(contentsOf: elements) {
-                push(leaf: leaf)
             }
         }
     }
