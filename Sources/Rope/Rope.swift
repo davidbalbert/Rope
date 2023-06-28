@@ -11,109 +11,93 @@ import Foundation
 // internal nodes are order 8: 4...8 children (see Tree.swift)
 // leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024 (see Chunk.swift)
 
-struct Rope {
-    typealias Builder = BTree<Summary>.Builder
+struct RopeSummary: BTreeSummary {
+    var utf16: Int
+    var scalars: Int
+    var chars: Int
+    var newlines: Int
 
-    var btree: BTree<Summary>
+    static func += (left: inout RopeSummary, right: RopeSummary) {
+        left.utf16 += right.utf16
+        left.scalars += right.scalars
+        left.chars += right.chars
+        left.newlines += right.newlines
+    }
+
+    static var zero: RopeSummary {
+        RopeSummary()
+    }
 
     init() {
-        btree = BTree()
+        self.utf16 = 0
+        self.scalars = 0
+        self.chars = 0
+        self.newlines = 0
+    }
+
+    init(summarizing chunk: Chunk) {
+        self.utf16 = chunk.countUTF16()
+        self.scalars = chunk.countScalars()
+        self.chars = chunk.countChars()
+        self.newlines = chunk.countNewlines()
     }
 }
 
-extension Rope {
-    struct Summary: BTreeSummary {
-        var utf16: Int
-        var scalars: Int
-        var chars: Int
-        var newlines: Int
-        
-        static func += (left: inout Summary, right: Summary) {
-            left.utf16 += right.utf16
-            left.scalars += right.scalars
-            left.chars += right.chars
-            left.newlines += right.newlines
-        }
-        
-        static var zero: Summary {
-            Summary()
-        }
-        
-        init() {
-            self.utf16 = 0
-            self.scalars = 0
-            self.chars = 0
-            self.newlines = 0
-        }
-        
-        init(summarizing chunk: Chunk) {
-            self.utf16 = chunk.countUTF16()
-            self.scalars = chunk.countScalars()
-            self.chars = chunk.countChars()
-            self.newlines = chunk.countNewlines()
-        }
-    }
-}
+typealias Rope = BTree<RopeSummary>
 
 extension Rope: Sequence {
     struct Iterator: IteratorProtocol {
+        var index: Index
+
         mutating func next() -> UTF8.CodeUnit? {
+            // TODO: implement
             return nil
         }
     }
 
     func makeIterator() -> Iterator {
-        Iterator()
+        Iterator(index: Index(startOf: root))
     }
 }
 
-extension Rope: BidirectionalCollection {
-    struct Index: Comparable {
-        var cursor: BTree<Summary>.Cursor
-
-        static func < (left: Rope.Index, right: Rope.Index) -> Bool {
-            left.cursor < right.cursor
-        }
-        
-        static func == (left: Rope.Index, right: Rope.Index) -> Bool {
-            left.cursor == right.cursor
-        }
-
-        func validate(for tree: BTree<Summary>) {
-            cursor.validate(for: tree.root)
-        }
-
-        mutating func formPredecessor() {
-            cursor.formPredecessor()
-        }
-
-        mutating func formSuccessor() {
-            cursor.formSuccessor()
-        }
+extension Rope.Index {
+    func prevUnicodeScalar() -> Unicode.Scalar? {
+        nil
     }
 
+    func nextUnicodeScalar() -> Unicode.Scalar? {
+        nil
+    }
+
+    func prevChar() -> Character? {
+        nil
+    }
+
+    func nextChar() -> Character? {
+        nil
+    }
+}
+
+// TODO: audit Collection, BidirectionalCollection and RangeReplaceableCollection for performance.
+// Specifically, we know the following methods could be more efficient:
+//
+// - formIndex(_:offsetBy:)
+// - formIndex(_:offsetBy:limitedBy:)
+// - index(_:offsetBy:)           -- might not be necessary if we implement the above
+// - index(_:offsetBy:limitedBy:) -- ditto
+extension Rope: Collection {
     var startIndex: Index {
-        Index(cursor: BTree.Cursor(startOf: btree))
+        Index(startOf: root)
     }
-
+    
     var endIndex: Index {
-        Index(cursor: BTree.Cursor(endOf: btree))
+        Index(endOf: root)
     }
-
-    func formIndex(before i: inout Index) {
-        i.validate(for: btree)
-        i.formPredecessor()
-    }
-
-    func formIndex(after i: inout Index) {
-        i.validate(for: btree)
-        i.formSuccessor()
-    }
-
-    func index(before i: Index) -> Index {
-        var i = i
-        formIndex(before: &i)
-        return i
+    
+    subscript(position: Index) -> UTF8.CodeUnit {
+        position.validate(for: root)
+        let (chunk, offset) = position.read()!
+        return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
     }
 
     func index(after i: Index) -> Index {
@@ -122,44 +106,57 @@ extension Rope: BidirectionalCollection {
         return i
     }
 
-    subscript(position: Index) -> UTF8.CodeUnit {
-        let (chunk, offset) = position.cursor.read(for: btree)!
-        return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
-    }
-
-    subscript(offset: Int) -> UTF8.CodeUnit {
-        let i = Index(cursor: BTree.Cursor(offsetBy: offset, in: btree))
-        return self[i]
+    func formIndex(after i: inout Index) {
+        i.validate(for: root)
+        i.formSuccessor()
     }
 }
 
+extension Rope: BidirectionalCollection {
+    func index(before i: Index) -> Index {
+        var i = i
+        formIndex(before: &i)
+        return i
+    }
+
+    func formIndex(before i: inout Index) {
+        i.validate(for: root)
+    }
+}
 
 extension Rope: RangeReplaceableCollection {
     mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C: Collection, C.Element == Element {
-        subrange.lowerBound.validate(for: btree)
-        subrange.upperBound.validate(for: btree)
-
+        subrange.lowerBound.validate(for: root)
+        subrange.upperBound.validate(for: root)
+        
         var b = Builder()
-        b.push(&btree.root, slicedBy: Range(startIndex..<subrange.lowerBound))
+        b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
         // TODO: fix this once we have metrics
         // b.push(string: newElements)
         b.push(utf8: newElements)
-        b.push(&btree.root, slicedBy: Range(subrange.upperBound..<endIndex))
-        self.btree = BTree(b.build())
+        b.push(&root, slicedBy: Range(subrange.upperBound..<endIndex))
+        self.root = b.build()
     }
 
     // The deafult implementation calls append(_:) in a loop. This should be faster.
     mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Element {
         var b = Builder()
-        b.push(&btree.root)
+        b.push(&root)
         // TODO: fix this once we have metrics
         b.push(utf8: newElements)
-        self.btree = BTree(b.build())
+        self.root = b.build()
     }
 
     // override the default behavior
     mutating func reserveCapacity(_ n: Int) {
         // no-op
+    }
+}
+
+extension Rope {
+    subscript(offset: Int) -> UTF8.CodeUnit {
+        let i = Index(offsetBy: offset, in: root)
+        return self[i]
     }
 }
 

@@ -8,8 +8,8 @@
 import Foundation
 
 extension Range<Int> {
-    init(_ ropeRange: Range<Rope.Index>) {
-        self.init(uncheckedBounds: (ropeRange.lowerBound.cursor.position, ropeRange.upperBound.cursor.position))
+    init<Summary>(_ treeRange: Range<BTree<Summary>.Index>) {
+        self.init(uncheckedBounds: (treeRange.lowerBound.position, treeRange.upperBound.position))
     }
 }
 

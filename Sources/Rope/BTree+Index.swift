@@ -1,5 +1,5 @@
 //
-//  Cursor.swift
+//  BTree+Index.swift
 //
 //
 //  Created by David Albert on 6/13/23.
@@ -23,8 +23,7 @@ extension BTree {
 
 
     // TODO: do we have to disambiguate between "at the end" and invalid? Maybe? I'm hoping we can just throw an error rather than have an invalid state. I.e. If we're at position 0, and we try to go back to the previous character, can't we just throw an error?
-    // Maybe call this Cursor
-    struct Cursor {
+    struct Index {
         weak var root: Node?
         let mutationCount: Int
 
@@ -39,11 +38,11 @@ extension BTree {
             position - leafStart
         }
 
-        fileprivate init(atNonEndOffset position: Int, in tree: BTree) {
-            assert((tree.isEmpty && position == 0) || (0..<tree.count).contains(position))
+        fileprivate init(atNonEndOffset position: Int, in root: Node) {
+            assert((root.isEmpty && position == 0) || (0..<root.count).contains(position))
 
-            self.root = tree.root
-            self.mutationCount = tree.root.mutationCount
+            self.root = root
+            self.mutationCount = root.mutationCount
             self.position = position
             self.path = []
             self.leaf = nil
@@ -73,26 +72,26 @@ extension BTree {
             self.leafStart = offset
         }
 
-        init(offsetBy offset: Int, in tree: BTree) {
-            precondition((0...tree.count).contains(offset), "Index out of bounds")
+        init(offsetBy offset: Int, in root: Node) {
+            precondition((0...root.count).contains(offset), "Index out of bounds")
 
             // endIndex is special cased because we don't to a leaf.
-            if offset == tree.count {
-                self.init(endOf: tree)
+            if offset == root.count {
+                self.init(endOf: root)
             } else {
-                self.init(atNonEndOffset: offset, in: tree)
+                self.init(atNonEndOffset: offset, in: root)
             }
         }
 
-        init(startOf tree: BTree) {
-            self.init(atNonEndOffset: 0, in: tree)
+        init(startOf root: Node) {
+            self.init(atNonEndOffset: 0, in: root)
         }
 
-        init(endOf tree: BTree) {
-            self.root = tree.root
-            self.mutationCount = tree.root.mutationCount
+        init(endOf root: Node) {
+            self.root = root
+            self.mutationCount = root.mutationCount
 
-            self.position = tree.count
+            self.position = root.count
             self.path = []
 
             self.leaf = nil
@@ -184,15 +183,13 @@ extension BTree {
             precondition(self.mutationCount == root.mutationCount)
         }
 
-        func validate(_ other: Cursor) {
+        func validate(_ other: Index) {
             precondition(root === other.root && root != nil)
             precondition(mutationCount == root!.mutationCount)
             precondition(mutationCount == other.mutationCount)
         }
 
-        func read(for tree: BTree) -> (Leaf, Int)? {
-            validate(for: tree.root)
-
+        func read() -> (Leaf, Int)? {
             guard let leaf else {
                 return nil
             }
@@ -202,13 +199,13 @@ extension BTree {
     }
 }
 
-extension BTree.Cursor: Comparable {
-    static func < (left: BTree.Cursor, right: BTree.Cursor) -> Bool {
+extension BTree.Index: Comparable {
+    static func < (left: BTree.Index, right: BTree.Index) -> Bool {
         left.validate(right)
         return left.position < right.position
     }
 
-    static func == (left: BTree.Cursor, right: BTree.Cursor) -> Bool {
+    static func == (left: BTree.Index, right: BTree.Index) -> Bool {
         left.validate(right)
         return left.position == right.position
     }
