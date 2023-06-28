@@ -208,3 +208,140 @@ extension Rope.Builder {
         push(string: String(bytes: codeUnits, encoding: .utf8)!)
     }
 }
+
+
+// The base metric, which measures UTF-8 code units.
+struct UTF8Metric: BTreeMetric {
+    func measure(summary: RopeSummary, count: Int) -> Int {
+        count
+    }
+    
+    func convertToBaseUnits(_ measuredUnits: Int, in leaf: Chunk) -> Int {
+        measuredUnits
+    }
+    
+    func convertToMeasuredUnits(_ baseUnits: Int, in leaf: Chunk) -> Int {
+        baseUnits
+    }
+    
+    func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
+        offset >= 0 && offset < chunk.count
+    }
+    
+    func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+        if offset == 0 {
+            return nil
+        } else {
+            return offset - 1
+        }
+    }
+    
+    func next(_ offset: Int, in chunk: Chunk) -> Int? {
+        if offset == chunk.count {
+            return nil
+        } else {
+            return offset + 1
+        }
+    }
+
+    var canFragment: Bool {
+        false
+    }
+}
+
+extension BTreeMetric<RopeSummary> where Self == UTF8Metric {
+    static var utf8: UTF8Metric { UTF8Metric() }
+}
+
+struct UnicodeScalarMetric: BTreeMetric {
+    func measure(summary: RopeSummary, count: Int) -> Int {
+        summary.scalars
+    }
+    
+    func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
+        let startIndex = chunk.string.startIndex
+
+        let i = chunk.string.unicodeScalarIndex(at: measuredUnits)
+        return chunk.string.utf8.distance(from: startIndex, to: i)
+    }
+    
+    func convertToMeasuredUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+        let startIndex = chunk.string.startIndex
+        let i = chunk.string.utf8Index(at: baseUnits)
+
+        assert(chunk.string.isValidUnicodeScalarIndex(i))
+
+        return chunk.string.unicodeScalars.distance(from: startIndex, to: i)
+    }
+    
+    func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
+        let i = chunk.string.utf8Index(at: offset)
+        return chunk.string.isValidUnicodeScalarIndex(i)
+    }
+    
+    func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+        if offset == 0 {
+            return nil
+        }
+
+        let startIndex = chunk.string.startIndex
+        let current = chunk.string.utf8Index(at: offset)
+
+        let target = chunk.string.unicodeScalars.index(before: current)
+        return chunk.string.utf8.distance(from: startIndex, to: target)
+    }
+    
+    func next(_ offset: Int, in chunk: Chunk) -> Int? {
+        if offset == chunk.count {
+            return nil
+        }
+
+        let startIndex = chunk.string.startIndex
+        let current = chunk.string.utf8Index(at: offset)
+
+        let target = chunk.string.unicodeScalars.index(after: current)
+        return chunk.string.utf8.distance(from: startIndex, to: target)
+    }
+
+    var canFragment: Bool {
+        false
+    }
+}
+
+extension BTreeMetric<RopeSummary> where Self == UnicodeScalarMetric {
+    static var unicodeScalars: UnicodeScalarMetric { UnicodeScalarMetric() }
+}
+
+struct CharacterMetric: BTreeMetric {
+    func measure(summary: RopeSummary, count: Int) -> Int {
+        summary.chars
+    }
+    
+    func convertToBaseUnits(_ measuredUnits: Int, in leaf: Chunk) -> Int {
+        0
+    }
+    
+    func convertToMeasuredUnits(_ baseUnits: Int, in leaf: Chunk) -> Int {
+        0
+    }
+    
+    func isBoundary(_ offset: Int, in leaf: Chunk) -> Bool {
+        false
+    }
+    
+    func prev(_ offset: Int, in leaf: Chunk) -> Int? {
+        nil
+    }
+    
+    func next(_ offset: Int, in leaf: Chunk) -> Int? {
+        nil
+    }
+
+    var canFragment: Bool {
+        true
+    }
+}
+
+extension BTreeMetric<RopeSummary> where Self == CharacterMetric {
+    static var characters: CharacterMetric { CharacterMetric() }
+}
