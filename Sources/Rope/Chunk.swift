@@ -12,6 +12,19 @@ struct Chunk: BTreeLeaf {
     static let minSize = 511
     static let maxSize = 1023
 
+    static func countNewlines(in buf: Slice<UnsafeBufferPointer<UInt8>>) -> Int {
+        let nl = UInt8(ascii: "\n")
+        var count = 0
+
+        for b in buf {
+            if b == nl {
+                count += 1
+            }
+        }
+
+        return count
+    }
+
 //    static func from(contentsOf elements: some Sequence<Character>) -> UnfoldSequence<Chunk, String.Index> {
 //        var s = String(elements)
 //        s.makeContiguousUTF8()
@@ -52,17 +65,8 @@ struct Chunk: BTreeLeaf {
 //    }
 
     var string: String
-
-    init() {
-        self.init("")
-    }
-
-    init(_ elements: some Sequence<Character>) {
-        var s = String(elements)
-        s.makeContiguousUTF8()
-        assert(s.utf8.count <= Chunk.maxSize)
-        self.string = s
-    }
+    var prefixCount: Int
+    var suffixCount: Int
 
     var count: Int {
         string.utf8.count
@@ -70,6 +74,31 @@ struct Chunk: BTreeLeaf {
 
     var isUndersized: Bool {
         count < Chunk.minSize
+    }
+
+    var firstBreak: String.Index {
+        string.utf8Index(at: prefixCount)
+    }
+
+    var lastBreak: String.Index {
+        string.utf8Index(at: count - suffixCount)
+    }
+
+    var characters: Substring {
+        string[firstBreak...]
+    }
+
+    init() {
+        self.init("", prefixCount: 0, suffixCount: 0)
+    }
+
+    init(_ elements: some Sequence<Character>, prefixCount: Int, suffixCount: Int) {
+        var s = String(elements)
+        s.makeContiguousUTF8()
+        assert(s.utf8.count <= Chunk.maxSize)
+        self.string = s
+        self.prefixCount = prefixCount
+        self.suffixCount = suffixCount
     }
 
     mutating func push(possiblySplitting other: Chunk) -> Chunk? {
@@ -87,7 +116,7 @@ struct Chunk: BTreeLeaf {
             let maxSplit = Swift.min(Chunk.maxSize, n - Chunk.minSize)
 
             let nl = UInt8(ascii: "\n")
-            let lineBoundary = string.withUTF8 { buf in
+            let lineBoundary = string.withExistingUTF8 { buf in
                 buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
             }
 
@@ -96,21 +125,64 @@ struct Chunk: BTreeLeaf {
             // TODO: this is SPI. Hopefully it gets exposed soon.
             let adjusted = string.unicodeScalars._index(roundingDown: idx)
 
+            // TODO: update self.prefixCount and self.suffixCount
+
             let rest = String(string.unicodeScalars[adjusted...])
             string = String(string.unicodeScalars[..<adjusted])
 
+            // TODO: prefixCount, suffixCount
             return Chunk(rest)
         }
     }
 
-    // This seems wrong. Can we get rid of it?
-    subscript(offset: Int) -> Character {
-        guard let i = string.utf8Index(at: offset).samePosition(in: string) else {
-            fatalError("invalid character offset")
-        }
-
-        return string[i]
+    // Why do we need fixup(previous:)? Consider these this example:
+    //
+    // Two chunks, one ending in "e" and the other starting with
+    // U+0301 (the combining acute accent). Before adding the second
+    // chunk, the states are as follows:
+    //
+    //    - first.suffixCount == 0 because "e" is a complete grapheme cluster
+    //    - second.prefixCount == 0. Even though U+0301 is a combining character
+    //      when it's at the beginning of a string, Swift treats it as its own
+    //      character.
+    //
+    // After appending the second chunk onto a rope ending with the first chunk,
+    // we want to be in the following state:
+    //
+    //    - first.suffixCount == 1 because "e" is no longer a complete
+    //      grapheme cluster.
+    //    - second.prefixCount == 1 because U+0301 now combined with the "e",
+    //      so Swift's special behavior of treating it as its own character
+    //      because it's at the beginning of the string no longer apples.
+    //
+    // When does this have to be called?
+    // - When we modify a chunk with push(possiblySplitting:). Consider calling
+    //   that on chunk C1.
+    //   - If it returns nil, then we have to call C1.fixup(previous: prev(C1)) and
+    //     next(C1).fixup(previous: C1).
+    //   - If it returns a new chunk C2, then we have to call C1.fixup(previous: prev(C1))
+    //     and next(C2).fixup(previous: C2). This assumes that C1's suffix and C2's prefix
+    //     are already correct.
+    //   - If we're inserting a new chunk even if we don't call push(possiblySplitting:).
+    //     This is the more complicated situation that I don't understand yet.
+    //
+    //     Specifically, I'd like to not call fixup more than I need to. The different situations
+    //     where I might call fixup are Node.concatinate(), Builder.push(_:), Builder.pop(_:). There
+    //     are probably more as well. This will take a lot of thinking.
+    //     
+    // 
+    mutating func fixup(previous: inout Chunk?) {
+        // TODO
     }
+
+    // This seems wrong. Can we get rid of it?
+    // subscript(offset: Int) -> Character {
+    //     guard let i = string.utf8Index(at: offset).samePosition(in: string) else {
+    //         fatalError("invalid character offset")
+    //     }
+
+    //     return string[i]
+    // }
 
     subscript(bounds: Range<Int>) -> Chunk {
         let start = string.utf8Index(at: bounds.lowerBound).samePosition(in: string.unicodeScalars)
@@ -120,11 +192,12 @@ struct Chunk: BTreeLeaf {
             fatalError("invalid unicode scalar offsets")
         }
 
+        // TODO: add prefixCount and suffixCount
         return Chunk(string[start..<end])
     }
 
     func countChars() -> Int {
-        string.count
+        characters.count
     }
 
     func countUTF16() -> Int {
@@ -136,20 +209,10 @@ struct Chunk: BTreeLeaf {
     }
 
     func countNewlines() -> Int {
-        assert(string.isContiguousUTF8)
-
-        let nl = UInt8(ascii: "\n")
         var count = 0
-
-        // countNewlines isn't mutating, so we can't use withUTF8.
-        // That said, we're guaranteed to have a contiguous utf8
-        // string, so this should always succeed.
-        string.utf8.withContiguousStorageIfAvailable { buf in
-            for c in buf {
-                if c == nl {
-                    count += 1
-                }
-            }
+        string.withExistingUTF8 { buf in
+            // TODO: does slicing cause any issues here?
+            count = Chunk.countNewlines(in: buf[...])
         }
 
         return count

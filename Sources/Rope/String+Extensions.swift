@@ -19,10 +19,22 @@ extension StringProtocol {
     func unicodeScalarIndex(at offset: Int) -> Index {
         unicodeScalars.index(startIndex, offsetBy: offset)
     }
+
+    // Like withUTF8, but rather than mutating, it just panics if we don't
+    // have contiguous UTF-8 storage.
+    func withExistingUTF8<R>(_ body: (UnsafeBufferPointer<UInt8>) -> R) -> R {
+        utf8.withContiguousStorageIfAvailable { buf in
+            body(buf)
+        }!
+    }
 }
 
 extension String {
     func isValidUnicodeScalarIndex(_ i: String.Index) -> Bool {
         i.samePosition(in: unicodeScalars) != nil
+    }
+
+    func isValidCharacterIndex(_ i: String.Index) -> Bool {
+        i.samePosition(in: self) != nil
     }
 }
