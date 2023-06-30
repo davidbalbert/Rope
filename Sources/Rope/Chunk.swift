@@ -131,7 +131,7 @@ struct Chunk: BTreeLeaf {
             string = String(string.unicodeScalars[..<adjusted])
 
             // TODO: prefixCount, suffixCount
-            return Chunk(rest)
+            return Chunk(rest, prefixCount: 0, suffixCount: 0)
         }
     }
 
@@ -163,26 +163,17 @@ struct Chunk: BTreeLeaf {
     //   - If it returns a new chunk C2, then we have to call C1.fixup(previous: prev(C1))
     //     and next(C2).fixup(previous: C2). This assumes that C1's suffix and C2's prefix
     //     are already correct.
-    //   - If we're inserting a new chunk even if we don't call push(possiblySplitting:).
-    //     This is the more complicated situation that I don't understand yet.
+    // - If we're inserting a new chunk even if we don't call push(possiblySplitting:).
+    //   This is the more complicated situation that I don't understand yet.
     //
-    //     Specifically, I'd like to not call fixup more than I need to. The different situations
-    //     where I might call fixup are Node.concatinate(), Builder.push(_:), Builder.pop(_:). There
-    //     are probably more as well. This will take a lot of thinking.
+    //   Specifically, I'd like to not call fixup more than I need to. The different situations
+    //   where I might call fixup are Node.concatinate(), Builder.push(_:), Builder.pop(_:). There
+    //   are probably more as well. This will take a lot of thinking.
     //     
-    // 
+    // I also have to make sure prefixCount and suffixCount stay on UnicodeScalar boundaries.
     mutating func fixup(previous: inout Chunk?) {
         // TODO
     }
-
-    // This seems wrong. Can we get rid of it?
-    // subscript(offset: Int) -> Character {
-    //     guard let i = string.utf8Index(at: offset).samePosition(in: string) else {
-    //         fatalError("invalid character offset")
-    //     }
-
-    //     return string[i]
-    // }
 
     subscript(bounds: Range<Int>) -> Chunk {
         let start = string.utf8Index(at: bounds.lowerBound).samePosition(in: string.unicodeScalars)
@@ -193,7 +184,7 @@ struct Chunk: BTreeLeaf {
         }
 
         // TODO: add prefixCount and suffixCount
-        return Chunk(string[start..<end])
+        return Chunk(string[start..<end], prefixCount: 0, suffixCount: 0)
     }
 
     func countChars() -> Int {

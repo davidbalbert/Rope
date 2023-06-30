@@ -49,9 +49,10 @@ extension Rope: Sequence {
     struct Iterator: IteratorProtocol {
         var index: Index
 
-        mutating func next() -> UTF8.CodeUnit? {
-            // TODO: implement
-            return nil
+        mutating func next() -> Character? {
+            let c = index.readChar()
+            index.next(using: .characters)
+            return c
         }
     }
 
@@ -61,126 +62,49 @@ extension Rope: Sequence {
 }
 
 extension Rope.Index {
-    mutating func prevUTF8() -> UTF8.CodeUnit? {
-        // TODO: maybe switch to having invalid cursors and
-        // ignoring the result of prev(using:)
-        guard prev(using: .utf8) != nil else {
-            return nil
-        }
-
-        if let (chunk, offset) = read() {
-            return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
-        } else {
-            return nil
-        }
-    }
-
-    mutating func nextUTF8() -> UTF8.CodeUnit? {
-        // TODO: ditto to the above
-        guard next(using: .utf8) != nil else {
-            return nil
-        }
-
-        if let (chunk, offset) = read() {
-            return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
-        } else {
-            return nil
-        }
-    }
-
-    mutating func prevUTF16() -> UTF16.CodeUnit? {
-        // TODO: ditto
-        guard prev(using: .utf16) != nil else {
-            return nil
-        }
-
-        if let (chunk, offset) = read() {
-            return chunk.string.utf16[chunk.string.utf8Index(at: offset)]
-        } else {
-            return nil
-        }
-    }
-
-    mutating func nextUTF16() -> UTF16.CodeUnit? {
-        // TODO: ditto
-        guard next(using: .utf16) != nil else {
-            return nil
-        }
-
-        if let (chunk, offset) = read() {
-            return chunk.string.utf16[chunk.string.utf8Index(at: offset)]
-        } else {
-            return nil
-        }
-    }
-
-    mutating func prevScalar() -> Unicode.Scalar? {
-        // TODO: ditto
-        guard prev(using: .unicodeScalars) != nil else {
-            return nil
-        }
-
-        if let (chunk, offset) = read() {
-            return chunk.string.unicodeScalars[chunk.string.utf8Index(at: offset)]
-        } else {
-            return nil
-        }
-    }
-
-    mutating func nextScalar() -> Unicode.Scalar? {
-        // TODO: ditto
-        guard next(using: .unicodeScalars) != nil else {
-            return nil
-        }
-
-        if let (chunk, offset) = read() {
-            return chunk.string.unicodeScalars[chunk.string.utf8Index(at: offset)]
-        } else {
-            return nil
-        }
-    }
-
-    mutating func prevChar() -> Character? {
-        // TODO: ditto
-        guard prev(using: .characters) != nil else {
-            return nil
-        }
-
+    func readUTF8() -> UTF8.CodeUnit? {
         guard let (chunk, offset) = read() else {
             return nil
         }
 
-        if offset >= chunk.prefixCount {
-            // the common case, the full character is in this chunk
-            return chunk.string[chunk.string.utf8Index(at: offset)]
-        }
-
-        // the character is split across chunks
-        guard let (prevChunk, prevOffset) = peekPrevLeaf() else {
-            fatalError("prefixCount of the first chunk should always be 0")
-        }
-
-        assert(prevOffset == 0)
-
-        let s = prevChunk.string[prevChunk.lastBreak...] + chunk.string[..<chunk.firstBreak]
-
-        assert(s.count == 1)
-        return s[s.startIndex]
+        return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
     }
 
-    mutating func nextChar() -> Character? {
-        // TODO: ditto
-        guard next(using: .characters) != nil else {
-            return nil
-        }
-
+    func readUTF16() -> UTF16.CodeUnit? {
         guard let (chunk, offset) = read() else {
             return nil
         }
 
-        if offset < chunk.count - chunk.suffixCount {
+        let i = chunk.string.utf8Index(at: offset)
+        assert(chunk.string.isValidUTF16Index(i))
+
+        return chunk.string.utf16[i]
+    }
+
+    func readScalar() -> Unicode.Scalar? {
+        guard let (chunk, offset) = read() else {
+            return nil
+        }
+
+        let i = chunk.string.utf8Index(at: offset)
+        assert(chunk.string.isValidUnicodeScalarIndex(i))
+
+        return chunk.string.unicodeScalars[i]
+    }
+
+    func readChar() -> Character? {
+        guard let (chunk, offset) = read() else {
+            return nil
+        }
+
+        let i = chunk.string.utf8Index(at: offset)
+
+        assert(i >= chunk.firstBreak && i <= chunk.lastBreak)
+        assert(chunk.string.isValidCharacterIndex(i))
+
+        if chunk.suffixCount == 0 || i < chunk.lastBreak {
             // the common case, the full character is in this chunk
-            return chunk.string[chunk.string.utf8Index(at: offset)]
+            return chunk.string[i]
         }
 
         // the character is split across chunks
@@ -219,10 +143,10 @@ extension Rope: Collection {
         Index(endOf: root)
     }
     
-    subscript(position: Index) -> UTF8.CodeUnit {
+    subscript(position: Index) -> Character {
         position.validate(for: root)
         let (chunk, offset) = position.read()!
-        return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
+        return chunk.string[chunk.string.utf8Index(at: offset)]
     }
 
     func index(after i: Index) -> Index {
@@ -233,7 +157,7 @@ extension Rope: Collection {
 
     func formIndex(after i: inout Index) {
         i.validate(for: root)
-        i.formSuccessor()
+        i.next(using: .characters)
     }
 }
 
@@ -246,6 +170,7 @@ extension Rope: BidirectionalCollection {
 
     func formIndex(before i: inout Index) {
         i.validate(for: root)
+        i.prev(using: .characters)
     }
 }
 
@@ -256,9 +181,7 @@ extension Rope: RangeReplaceableCollection {
         
         var b = Builder()
         b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
-        // TODO: fix this once we have metrics
-        // b.push(string: newElements)
-        b.push(utf8: newElements)
+        b.push(string: newElements)
         b.push(&root, slicedBy: Range(subrange.upperBound..<endIndex))
         self.root = b.build()
     }
@@ -267,9 +190,7 @@ extension Rope: RangeReplaceableCollection {
     mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Element {
         var b = Builder()
         b.push(&root)
-        // TODO: fix this once we have metrics
-        // b.push(string: newElements)
-        b.push(utf8: newElements)
+        b.push(string: newElements)
         self.root = b.build()
     }
 
@@ -280,17 +201,17 @@ extension Rope: RangeReplaceableCollection {
 }
 
 extension Rope {
-    subscript(offset: Int) -> UTF8.CodeUnit {
+    subscript(offset: Int) -> Character {
         let i = Index(offsetBy: offset, in: root)
         return self[i]
     }
 }
 
-//extension Rope {
-//    mutating func append(_ string: String) {
-//        append(contentsOf: string)
-//    }
-//}
+extension Rope {
+    mutating func append(_ string: String) {
+        append(contentsOf: string)
+    }
+}
 
 extension Rope.Builder {
     mutating func push(string: some Sequence<Character>) {
@@ -304,7 +225,7 @@ extension Rope.Builder {
 
             if n <= Chunk.maxSize {
                 // TODO: prefixCount, suffixCount
-                push(leaf: Chunk(s))
+                push(leaf: Chunk(s, prefixCount: 0, suffixCount: 0))
                 s = s[s.endIndex...]
             } else {
                 let i: String.Index
@@ -326,14 +247,10 @@ extension Rope.Builder {
                 }
 
                 // TODO: prefixCount, suffixCount
-                push(leaf: Chunk(s[..<i]))
+                push(leaf: Chunk(s[..<i], prefixCount: 0, suffixCount: 0))
                 s = s[i...]
             }
         }
-    }
-
-    mutating func push(utf8 codeUnits: some Sequence<UTF8.CodeUnit>) {
-        push(string: String(bytes: codeUnits, encoding: .utf8)!)
     }
 }
 
@@ -593,47 +510,4 @@ struct LinesMetric: BTreeMetric {
 
 extension BTreeMetric<RopeSummary> where Self == CharacterMetric {
     static var lines: LinesMetric { LinesMetric() }
-}
-
-
-// N.b. These will be accessable as BTree.*View, BTree<RopeSummary>.*View,
-// and Rope.*View, but not BTree<SomeOtherSummary>.*View.
-extension Rope {
-    var utf8: UTF8View {
-        UTF8View(base: self)
-    }
-
-    struct UTF8View {
-        var base: Rope
-    }
-}
-
-extension Rope {
-    var utf16: UTF16View {
-        UTF16View(base: self)
-    }
-
-    struct UTF16View {
-        var base: Rope
-    }
-}
-
-extension Rope {
-    var unicodeScalars: UnicodeScalarView {
-        UnicodeScalarView(base: self)
-    }
-
-    struct UnicodeScalarView {
-        var base: Rope
-    }
-}
-
-extension Rope {
-    var lines: LinesView {
-        LinesView(base: self)
-    }
-
-    struct LinesView {
-        var base: Rope
-    }
 }

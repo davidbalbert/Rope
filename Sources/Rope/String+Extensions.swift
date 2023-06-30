@@ -30,6 +30,10 @@ extension StringProtocol {
 }
 
 extension String {
+    func isValidUTF16Index(_ i: String.Index) -> Bool {
+        i.samePosition(in: utf16) != nil
+    }
+
     func isValidUnicodeScalarIndex(_ i: String.Index) -> Bool {
         i.samePosition(in: unicodeScalars) != nil
     }

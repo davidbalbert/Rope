@@ -107,82 +107,7 @@ extension BTree {
             return leaf == nil
         }
 
-        mutating func formSuccessor() {
-            guard let leaf else {
-                preconditionFailure("Cannot advance past endIndex")
-            }
-
-            // next_inside_leaf()
-            if offsetInLeaf < leaf.count {
-                self.position += 1
-                return
-            }
-
-            // move to the next leaf
-            while let el = path.last, el.slot == el.node.children.count - 1 {
-                path.removeLast()
-            }
-
-            if path.isEmpty {
-                self.leaf = nil
-                self.leafStart = -1
-                return
-            }
-
-            path[path.count - 1].slot += 1
-            var node = path[path.count - 1].child
-
-            // descend
-            while !node.isLeaf {
-                path.append(PathElement(node: node, slot: 0))
-                node = node.children[0]
-            }
-
-            // move position to the start of the next leaf
-            position += 1
-
-            self.leafStart = position
-            self.leaf = node.leaf
-        }
-
-        mutating func formPredecessor() {
-            if position == 0 {
-                preconditionFailure("Cannot go below startIndex")
-            }
-
-            guard let leaf else {
-                // we're at endIndex
-                // warning: if we change invariants later, leaf being nil may
-                // no longer mean that position == root.count.
-                position -= 1
-                descend()
-                return
-            }
-
-            if offsetInLeaf > 1 {
-                position -= 1
-                return
-            }
-
-            // move to the previous leaf
-            while let el = path.last, el.slot == 0 {
-                path.removeLast()
-            }
-
-            // descend
-            path[path.count - 1].slot -= 1
-            var node = path[path.count - 1].child
-
-            while !node.isLeaf {
-                path.append(PathElement(node: node, slot: node.children.count - 1))
-                node = node.children[node.children.count - 1]
-            }
-
-            self.leaf = node.leaf
-            self.leafStart = position - leaf.count
-            position -= 1
-        }
-
+        @discardableResult
         mutating func prev(using metric: some BTreeMetric<Summary>) -> Int? {
             assert(root != nil)
 
@@ -227,6 +152,7 @@ extension BTree {
             return nil
         }
 
+        @discardableResult
         mutating func next(using metric: some BTreeMetric<Summary>) -> Int? {
             assert(root != nil)
 
@@ -269,6 +195,19 @@ extension BTree {
 
         mutating func prev(withinLeafUsing metric: some BTreeMetric<Summary>) -> Int? {
             assert(root != nil)
+
+            if position == root!.count {
+                assert(leaf == nil)
+                prevLeaf()
+
+                // prevLeaf() puts us at the beginning of the previous leaf. We need
+                // to move one past the end.
+                //
+                // WARNING: after this line, we're in an invalid state until we call
+                // prev(withinLeafUsing:).
+                position = root!.count
+            }
+
             let leaf = leaf!
 
             guard let newOffsetInLeaf = metric.prev(offsetInLeaf, in: leaf) else {
@@ -276,6 +215,11 @@ extension BTree {
             }
 
             position = leafStart + newOffsetInLeaf
+
+            if position == 0 {
+                return nil
+            }
+
             return position
         }
 
@@ -293,6 +237,10 @@ extension BTree {
                 nextLeaf()
             } else {
                 position = leafStart + newOffsetInLeaf
+            }
+
+            if position == root!.count {
+                return nil
             }
 
             return position
@@ -405,7 +353,7 @@ extension BTree {
             }
 
             if offset > 0 {
-                measure += metric.measure(summary: n.summary, count: offset)
+                measure += metric.measure(summary: node.summary, count: offset)
             }
 
             return measure
