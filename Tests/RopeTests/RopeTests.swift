@@ -299,11 +299,11 @@ final class RopeTests: XCTestCase {
 
     func testSummarizeCombiningCharacters() {
         var r = Rope("foo\u{0301}\nbar\nbaz") // "foó"
-        XCTAssertEqual(13, r.root.count)
-        XCTAssertEqual(12, r.root.summary.utf16)
-        XCTAssertEqual(12, r.root.summary.scalars)
-        XCTAssertEqual(11, r.root.summary.chars)
-        XCTAssertEqual(2, r.root.summary.newlines)
+        XCTAssertEqual(11, r.count)
+        XCTAssertEqual(12, r.unicodeScalars.count)
+        XCTAssertEqual(12, r.utf16.count)
+        XCTAssertEqual(13, r.utf8.count)
+        XCTAssertEqual(3, r.lines.count)
 
         // this offset is in Characters, not UTF-8 code units or code points.
         // The "a" should be inserted after the "ó".
@@ -316,7 +316,12 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(13, r.root.summary.utf16)
         XCTAssertEqual(13, r.root.summary.scalars)
         XCTAssertEqual(12, r.root.summary.chars)
-        XCTAssertEqual(2, r.root.summary.newlines)
+
+        XCTAssertEqual(12, r.count)
+        XCTAssertEqual(13, r.unicodeScalars.count)
+        XCTAssertEqual(13, r.utf16.count)
+        XCTAssertEqual(14, r.utf8.count)
+        XCTAssertEqual(3, r.lines.count)
     }
 //
 //    func testSummarizeCombiningCharactersSplit() {

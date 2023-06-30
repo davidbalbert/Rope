@@ -33,10 +33,6 @@ struct BTree<Summary> where Summary: BTreeSummary {
         self.init(Node())
     }
 
-    var count: Int {
-        root.count
-    }
-
     var isEmpty: Bool {
         root.isEmpty
     }

@@ -136,6 +136,10 @@ extension Rope.Index {
 //
 // - index(_:offsetBy:limitedBy:) -- ditto
 extension Rope: Collection {
+    var count: Int {
+        root.measure(using: .characters)
+    }
+
     var startIndex: Index {
         Index(startOf: root)
     }
@@ -484,7 +488,7 @@ extension BTreeMetric<RopeSummary> where Self == CharacterMetric {
     static var characters: CharacterMetric { CharacterMetric() }
 }
 
-struct LinesMetric: BTreeMetric {
+struct NewlinesMetric: BTreeMetric {
     func measure(summary: RopeSummary, count: Int) -> Int {
         summary.newlines
     }
@@ -542,6 +546,6 @@ struct LinesMetric: BTreeMetric {
     }
 }
 
-extension BTreeMetric<RopeSummary> where Self == CharacterMetric {
-    static var lines: LinesMetric { LinesMetric() }
+extension BTreeMetric<RopeSummary> where Self == NewlinesMetric {
+    static var newlines: NewlinesMetric { NewlinesMetric() }
 }

@@ -18,7 +18,7 @@ extension Rope {
         var base: Rope
 
         var count: Int {
-            base.count
+            base.root.measure(using: .utf8)
         }
     }
 }
@@ -32,7 +32,7 @@ extension Rope {
         var base: Rope
 
         var count: Int {
-            base.root.summary.utf16
+            base.root.measure(using: .utf16)
         }
     }
 }
@@ -46,7 +46,7 @@ extension Rope {
         var base: Rope
 
         var count: Int {
-            base.root.summary.scalars
+            base.root.measure(using: .unicodeScalars)
         }
     }
 }
@@ -60,8 +60,7 @@ extension Rope {
         var base: Rope
 
         var count: Int {
-            // TODO: test and verify that `+ 1` is correct.
-            base.root.summary.newlines + 1
+            base.root.measure(using: .newlines) + 1
         }
     }
 }
