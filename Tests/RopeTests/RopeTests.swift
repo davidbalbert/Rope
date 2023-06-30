@@ -298,7 +298,7 @@ final class RopeTests: XCTestCase {
     }
 
     func testSummarizeCombiningCharacters() {
-        let r = Rope("foo\u{0301}\nbar\nbaz") // "foó"
+        var r = Rope("foo\u{0301}\nbar\nbaz") // "foó"
         XCTAssertEqual(13, r.root.count)
         XCTAssertEqual(12, r.root.summary.utf16)
         XCTAssertEqual(12, r.root.summary.scalars)
@@ -306,19 +306,17 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(2, r.root.summary.newlines)
 
         // this offset is in Characters, not UTF-8 code units or code points.
-        // The "a" should be inserted after the "é".
+        // The "a" should be inserted after the "ó".
 
-        // Not currently working
+        let i = r.index(r.startIndex, offsetBy: 3)
+        r.insert(contentsOf: "a", at: i)
+        XCTAssertEqual("foo\u{0301}a\nbar\nbaz", String(r)) // "foóa"
 
-//        let i = r.index(r.startIndex, offsetBy: 3)
-//        r.insert(contentsOf: "a", at: i)
-//        XCTAssertEqual("fooa\u{0301}\nbar\nbaz", String(r))
-//        
-//        XCTAssertEqual(14, r.root.count)
-//        XCTAssertEqual(13, r.root.summary.utf16)
-//        XCTAssertEqual(13, r.root.summary.scalars)
-//        XCTAssertEqual(12, r.root.summary.chars)
-//        XCTAssertEqual(2, r.root.summary.newlines)
+        XCTAssertEqual(14, r.root.count)
+        XCTAssertEqual(13, r.root.summary.utf16)
+        XCTAssertEqual(13, r.root.summary.scalars)
+        XCTAssertEqual(12, r.root.summary.chars)
+        XCTAssertEqual(2, r.root.summary.newlines)
     }
 //
 //    func testSummarizeCombiningCharactersSplit() {
