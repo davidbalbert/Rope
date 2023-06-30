@@ -25,45 +25,6 @@ struct Chunk: BTreeLeaf {
         return count
     }
 
-//    static func from(contentsOf elements: some Sequence<Character>) -> UnfoldSequence<Chunk, String.Index> {
-//        var s = String(elements)
-//        s.makeContiguousUTF8()
-//
-//        return sequence(state: s.startIndex) { i in
-//            var substring = s[i...]
-//
-//            if substring.isEmpty {
-//                return nil
-//            }
-//
-//            if substring.utf8.count <= Chunk.maxSize {
-//                i = substring.endIndex
-//                return Chunk(substring)
-//            } else {
-//                let n = substring.utf8.count
-//
-//                if n > Chunk.maxSize {
-//                    let minSplit = Chunk.minSize
-//                    let maxSplit = Swift.min(Chunk.maxSize, n - Chunk.minSize)
-//
-//                    let nl = UInt8(ascii: "\n")
-//                    let lineBoundary = substring.withUTF8 { buf in
-//                        buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
-//                    }
-//
-//                    let offset = lineBoundary ?? maxSplit
-//                    let codepoint = substring.utf8.index(substring.startIndex, offsetBy: offset)
-//                    // TODO: this is SPI. Hopefully it gets exposed soon.
-//                    i = substring.unicodeScalars._index(roundingDown: codepoint)
-//                } else {
-//                    i = substring.endIndex
-//                }
-//
-//                return Chunk(substring[..<i])
-//            }
-//        }
-//    }
-
     var string: String
     var prefixCount: Int
     var suffixCount: Int
@@ -202,7 +163,6 @@ struct Chunk: BTreeLeaf {
     func countNewlines() -> Int {
         var count = 0
         string.withExistingUTF8 { buf in
-            // TODO: does slicing cause any issues here?
             count = Chunk.countNewlines(in: buf[...])
         }
 
