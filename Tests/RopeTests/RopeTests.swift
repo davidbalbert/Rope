@@ -373,4 +373,24 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(12, j.position)
         XCTAssertEqual(13, r.index(after: j).position)
     }
+
+    func testIndexOffsetByASCII() {
+        let r = Rope("Hello, world!")
+
+        let i = r.index(r.startIndex, offsetBy: 3)
+        XCTAssertEqual(3, i.position)
+
+        let j = r.index(i, offsetBy: -2)
+        XCTAssertEqual(1, j.position)
+    }
+
+    func testIndexOffsetByLimitedByASCII() {
+        let r = Rope("Hello, world!")
+
+        let i = r.index(r.startIndex, offsetBy: 3, limitedBy: r.endIndex)
+        XCTAssertEqual(3, i?.position)
+
+        let j = r.index(r.startIndex, offsetBy: 30, limitedBy: r.endIndex)
+        XCTAssertNil(j)
+    }
 }

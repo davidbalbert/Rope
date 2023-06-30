@@ -179,6 +179,24 @@ extension Rope: Collection {
 
         return i
     }
+
+    func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
+        i.validate(for: root)
+        limit.validate(for: root)
+
+        let l = limit.position - i.position
+        if distance > 0 ? l >= 0 && l < distance : l <= 0 && distance < l {
+            return nil
+        }
+
+        // This is the body of index(_:offsetBy:) skipping the validation
+        var i = i
+        let m = root.count(.characters, upThrough: i.position)
+        let pos = root.offset(of: m + distance, measuredIn: .characters)
+        i.set(pos)
+
+        return i
+    }
 }
 
 extension Rope: BidirectionalCollection {
