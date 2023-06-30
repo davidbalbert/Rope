@@ -149,6 +149,17 @@ extension Rope: Collection {
         return chunk.string[chunk.string.utf8Index(at: offset)]
     }
 
+    subscript(bounds: Range<Index>) -> Rope {
+        bounds.lowerBound.validate(for: root)
+        bounds.upperBound.validate(for: root)
+
+        var r = root
+
+        var b = Builder()
+        b.push(&r, slicedBy: Range(bounds))
+        return Rope(b.build())
+    }
+
     func index(after i: Index) -> Index {
         var i = i
         formIndex(after: &i)
