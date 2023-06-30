@@ -30,6 +30,14 @@ extension StringProtocol {
 }
 
 extension String {
+    init(_ rope: Rope) {
+        self.init()
+        self.reserveCapacity(rope.utf8.count)
+        for chunk in rope.chunks {
+            append(chunk.string)
+        }
+    }
+
     func isValidUTF16Index(_ i: String.Index) -> Bool {
         i.samePosition(in: utf16) != nil
     }
