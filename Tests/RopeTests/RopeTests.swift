@@ -81,7 +81,6 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(String(repeating: "a", count: 1000), String(slice))
     }
 
-    // TODO: too slow, even without the final assert that builds a string
     func testSliceHuge() {
         let r = Rope(String(repeating: "a", count: 1_000_000))
         let start = r.index(r.startIndex, offsetBy: 40_000)
@@ -116,7 +115,6 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual("Hello, Earth!", String(r))
     }
 
-    // TODO: too slow, even without final assert
     func testReplaceSubrangeVeryLong() {
         var r = Rope(String(repeating: "a", count: 1_000_000))
         let start = r.index(r.startIndex, offsetBy: 40_000)
@@ -132,7 +130,10 @@ final class RopeTests: XCTestCase {
         r.append(contentsOf: "def")
         XCTAssertEqual("abcdef", String(r))
         XCTAssert(isKnownUniquelyReferenced(&r.root))
+
+        #if DEBUG
         XCTAssertEqual(0, r.root.cloneCount)
+        #endif
     }
 
     func testAppendContentsOfCOW() {
@@ -151,7 +152,10 @@ final class RopeTests: XCTestCase {
 
         XCTAssert(isKnownUniquelyReferenced(&r1.root))
         XCTAssert(isKnownUniquelyReferenced(&r2.root))
+
+        #if DEBUG
         XCTAssertEqual(1, r1.root.cloneCount)
+        #endif
     }
 
     func testAppendInPlace() {
@@ -349,4 +353,24 @@ final class RopeTests: XCTestCase {
 //    func testSummarizeMultiCodepointGraphemesHuge() {
 //        // TODO
 //    }
+
+
+    // Index tests
+
+    func testIndexBeforeAfterASCII() {
+        let r = Rope("Hello, world!")
+
+        XCTAssertEqual(0, r.startIndex.position)
+        XCTAssertEqual(13, r.endIndex.position)
+
+        let i = r.index(after: r.startIndex)
+
+        XCTAssertEqual(1, i.position)
+        XCTAssertEqual(0, r.index(before: i).position)
+
+        let j = r.index(before: r.endIndex)
+
+        XCTAssertEqual(12, j.position)
+        XCTAssertEqual(13, r.index(after: j).position)
+    }
 }

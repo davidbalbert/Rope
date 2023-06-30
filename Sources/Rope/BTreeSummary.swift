@@ -15,3 +15,9 @@ protocol BTreeSummary {
     static var zero: Self { get }
     init(summarizing leaf: Leaf)
 }
+
+protocol BTreeDefaultMetric: BTreeSummary {
+    associatedtype DefaultMetric: BTreeMetric<Self>
+
+    static var defaultMetric: DefaultMetric { get }
+}

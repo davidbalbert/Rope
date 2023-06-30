@@ -112,6 +112,17 @@ extension BTree {
             return leaf == nil
         }
 
+        mutating func set(_ position: Int) {
+            self.position = position
+
+            if let leaf, position >= offsetOfLeaf && position < offsetOfLeaf + leaf.count {
+                // We're still in the same leaf. No need to descend.
+                return
+            }
+
+            descend()
+        }
+
         @discardableResult
         mutating func prev(using metric: some BTreeMetric<Summary>) -> Int? {
             assert(root != nil)
@@ -144,7 +155,7 @@ extension BTree {
 
             // The leaf before the starting leaf had no boundaries in the metric.
             // Just start at the top and descend instead.
-            let measure = measure(upTo: offsetOfLeaf, using: metric)
+            let measure = measure(upToLeafContaining: offsetOfLeaf, using: metric)
             descend(toLeafContaining: measure, asMeasuredBy: metric)
 
             position = offsetOfLeaf + leaf!.count
@@ -184,7 +195,7 @@ extension BTree {
             // in the metric. Just start at the top and descend instead.
 
             // measure the our current position
-            let measure = measure(upTo: offsetOfLeaf, using: metric)
+            let measure = measure(upToLeafContaining: offsetOfLeaf, using: metric)
             descend(toLeafContaining: measure+1, asMeasuredBy: metric)
 
             if let offset = next(withinLeafUsing: metric) {
@@ -341,7 +352,11 @@ extension BTree {
             return i.nextLeaf()
         }
 
-        func measure(upTo pos: Int, using metric: some BTreeMetric<Summary>) -> Int {
+        func measure(upToLeafContaining pos: Int, using metric: some BTreeMetric<Summary>) -> Int {
+            if pos == 0 {
+                return 0
+            }
+
             var node = root!
             var measure = 0
             var offset = pos
@@ -353,12 +368,8 @@ extension BTree {
                         break
                     }
                     offset -= child.count
-                    measure += metric.measure(summary: child.summary, count: child.count)
+                    measure += child.measure(using: metric)
                 }
-            }
-
-            if offset > 0 {
-                measure += metric.measure(summary: node.summary, count: offset)
             }
 
             return measure
@@ -374,7 +385,7 @@ extension BTree {
             while !node.isLeaf {
                 var slot = 0
                 for child in node.children.dropLast() {
-                    let childMeasure = metric.measure(summary: child.summary, count: child.count)
+                    let childMeasure = child.measure(using: metric)
                     if childMeasure >= measure {
                         break
                     }

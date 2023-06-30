@@ -204,5 +204,48 @@ extension BTree {
             // to just create a new Node instance.
             return Node(cloning: self)
         }
+
+        func measure(using metric: some BTreeMetric<Summary>) -> Int {
+            metric.measure(summary: summary, count: count)
+        }
+
+        func convert(_ m1: Int, from: some BTreeMetric<Summary>, to: some BTreeMetric<Summary>) -> Int {
+            if m1 == 0 {
+                return 0
+            }
+
+            // TODO: figure out m1_fudge in xi-editor
+            var m1 = m1
+            var m2 = 0
+            var node = self
+            while !node.isLeaf {
+                for child in node.children {
+                    let childM1 = child.measure(using: from)
+                    if m1 < childM1 {
+                        node = child
+                        break
+                    }
+                    m1 -= childM1
+                    m2 += child.measure(using: to)
+                }
+            }
+
+            let base = from.convertToBaseUnits(m1, in: node.leaf)
+            return m2 + to.convertToMeasuredUnits(base, in: node.leaf)
+        }
+
+        func convert<M>(_ m1: Int, from: M, to: M) -> Int where M: BTreeMetric<Summary> {
+            return m1
+        }
+    }
+}
+
+extension BTree.Node where Summary: BTreeDefaultMetric {
+    func count(_ metric: some BTreeMetric<Summary>, upThrough offset: Int) -> Int {
+        convert(offset, from: Summary.defaultMetric, to: metric)
+    }
+
+    func offset(of measured: Int, measuredIn metric: some BTreeMetric<Summary>) -> Int {
+        convert(measured, from: metric, to: Summary.defaultMetric)
     }
 }

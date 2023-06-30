@@ -17,7 +17,7 @@ protocol BTreeMetric<Summary> {
     func isBoundary(_ offset: Int, in leaf: Summary.Leaf) -> Bool
 
     // In prev(_:in:), offset may be one beyond the end of the leaf
-    // (i.e. offset == leaf.count).
+    // (i.e. offset == leaf.count) if we're processing the last leaf.
     func prev(_ offset: Int, in leaf: Summary.Leaf) -> Int?
     func next(_ offset: Int, in leaf: Summary.Leaf) -> Int?
 

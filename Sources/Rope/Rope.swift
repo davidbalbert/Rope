@@ -43,6 +43,10 @@ struct RopeSummary: BTreeSummary {
     }
 }
 
+extension RopeSummary: BTreeDefaultMetric {
+    static var defaultMetric: UTF8Metric { UTF8Metric() }
+}
+
 typealias Rope = BTree<RopeSummary>
 
 extension Rope: Sequence {
@@ -130,9 +134,6 @@ extension Rope.Index {
 // TODO: audit Collection, BidirectionalCollection and RangeReplaceableCollection for performance.
 // Specifically, we know the following methods could be more efficient:
 //
-// - formIndex(_:offsetBy:)
-// - formIndex(_:offsetBy:limitedBy:)
-// - index(_:offsetBy:)           -- might not be necessary if we implement the above
 // - index(_:offsetBy:limitedBy:) -- ditto
 extension Rope: Collection {
     var startIndex: Index {
@@ -161,27 +162,32 @@ extension Rope: Collection {
     }
 
     func index(after i: Index) -> Index {
+        i.validate(for: root)
+        
         var i = i
-        formIndex(after: &i)
+        i.next(using: .characters)
         return i
     }
 
-    func formIndex(after i: inout Index) {
+    func index(_ i: Index, offsetBy distance: Int) -> Index {
         i.validate(for: root)
-        i.next(using: .characters)
+
+        var i = i
+        let m = root.count(.characters, upThrough: i.position)
+        let pos = root.offset(of: m + distance, measuredIn: .characters)
+        i.set(pos)
+
+        return i
     }
 }
 
 extension Rope: BidirectionalCollection {
     func index(before i: Index) -> Index {
-        var i = i
-        formIndex(before: &i)
-        return i
-    }
-
-    func formIndex(before i: inout Index) {
         i.validate(for: root)
+
+        var i = i
         i.prev(using: .characters)
+        return i
     }
 }
 
@@ -264,7 +270,6 @@ extension Rope.Builder {
         }
     }
 }
-
 
 // The base metric, which measures UTF-8 code units.
 struct UTF8Metric: BTreeMetric {
