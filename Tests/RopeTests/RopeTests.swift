@@ -312,17 +312,53 @@ final class RopeTests: XCTestCase {
         r.insert(contentsOf: "a", at: i)
         XCTAssertEqual("foo\u{0301}a\nbar\nbaz", String(r)) // "foóa"
 
-        XCTAssertEqual(14, r.root.count)
-        XCTAssertEqual(13, r.root.summary.utf16)
-        XCTAssertEqual(13, r.root.summary.scalars)
-        XCTAssertEqual(12, r.root.summary.chars)
-
         XCTAssertEqual(12, r.count)
         XCTAssertEqual(13, r.unicodeScalars.count)
         XCTAssertEqual(13, r.utf16.count)
         XCTAssertEqual(14, r.utf8.count)
         XCTAssertEqual(3, r.lines.count)
     }
+
+    func testSummarizeCombiningCharactersAtChunkBoundary() {
+        XCTAssertEqual(1023, Chunk.maxSize)
+
+        var r = Rope(String(repeating: "a", count: 1000))
+
+        XCTAssertEqual(1000, r.count)
+        XCTAssertEqual(1000, r.unicodeScalars.count)
+        XCTAssertEqual(1000, r.utf16.count)
+        XCTAssertEqual(1000, r.utf8.count)
+
+        XCTAssertEqual(0, r.root.height)
+
+        XCTAssertEqual(0, r.root.leaf.prefixCount)
+        XCTAssertEqual(0, r.root.leaf.suffixCount)
+
+        // 'combining accute accent' + "b"*999
+        r.append("\u{0301}" + String(repeating: "b", count: 999))
+
+
+        XCTAssertEqual(1, r.root.height)
+        XCTAssertEqual(2, r.root.children.count)
+
+        XCTAssertEqual(1000, r.root.children[0].count)
+        XCTAssertEqual(1001, r.root.children[1].count) // "´" takes up two bytes
+
+        XCTAssertEqual(0, r.root.children[0].leaf.prefixCount)
+        XCTAssertEqual(1, r.root.children[0].leaf.suffixCount)
+        XCTAssertEqual(1, r.root.children[1].leaf.prefixCount)
+        XCTAssertEqual(0, r.root.children[1].leaf.suffixCount)
+
+        // the last "a" in children[0] combine with the accent at
+        // the beginning of children[1] to form a single character.
+        XCTAssertEqual(1999, r.count)
+        XCTAssertEqual(2000, r.unicodeScalars.count)
+        XCTAssertEqual(2000, r.utf16.count)
+        XCTAssertEqual(2001, r.utf8.count)
+
+        XCTAssertEqual("a\u{0301}", r[999])
+    }
+
 //
 //    func testSummarizeCombiningCharactersSplit() {
 //        // TODO
