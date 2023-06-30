@@ -24,6 +24,11 @@ extension BTree {
 
     // TODO: do we have to disambiguate between "at the end" and invalid? Maybe? I'm hoping we can just throw an error rather than have an invalid state. I.e. If we're at position 0, and we try to go back to the previous character, can't we just throw an error?
     // TODO: if we're at the end, position should be == root!.count
+    //
+    // If we were to disambiguate, here's an idea: Leaf is always present.
+    // We're at the end if position == root!.count. For every leaf besides
+    // the final leaf, offsetInLeaf cannot equal leaf.count. This is only
+    // allowed for endIndex where offsetInLeaf == leaf.count.
     struct Index {
         weak var root: Node?
         let mutationCount: Int
@@ -33,10 +38,10 @@ extension BTree {
         var path: [PathElement]
 
         var leaf: Leaf? // Nil if we're at the end of the tree. Otherwise, present.
-        var leafStart: Int // Position of the first element of the leaf in base units. -1 if we're at the end of the tree.
+        var offsetOfLeaf: Int // Position of the first element of the leaf in base units. -1 if we're at the end of the tree.
 
         var offsetInLeaf: Int {
-            position - leafStart
+            position - offsetOfLeaf
         }
 
         fileprivate init(atNonEndOffset position: Int, in root: Node) {
@@ -47,7 +52,7 @@ extension BTree {
             self.position = position
             self.path = []
             self.leaf = nil
-            self.leafStart = 0
+            self.offsetOfLeaf = 0
 
             descend()
         }
@@ -74,7 +79,7 @@ extension BTree {
             }
 
             self.leaf = node.leaf
-            self.leafStart = offset
+            self.offsetOfLeaf = offset
         }
 
         init(offsetBy offset: Int, in root: Node) {
@@ -100,7 +105,7 @@ extension BTree {
             self.path = []
 
             self.leaf = nil
-            self.leafStart = -1
+            self.offsetOfLeaf = -1
         }
 
         var isAtEnd: Bool {
@@ -130,7 +135,7 @@ extension BTree {
             //
             // WARNING: after this line, we're in an invalid state until we call
             // prev(withinLeafUsing:).
-            position = leafStart + leaf!.count
+            position = offsetOfLeaf + leaf!.count
 
             // one more shot
             if let offset = prev(withinLeafUsing: metric) {
@@ -139,10 +144,10 @@ extension BTree {
 
             // The leaf before the starting leaf had no boundaries in the metric.
             // Just start at the top and descend instead.
-            let measure = measure(upTo: leafStart, using: metric)
+            let measure = measure(upTo: offsetOfLeaf, using: metric)
             descend(toLeafContaining: measure, asMeasuredBy: metric)
 
-            position = leafStart + leaf!.count
+            position = offsetOfLeaf + leaf!.count
             if let offset = prev(withinLeafUsing: metric) {
                 return offset
             }
@@ -179,7 +184,7 @@ extension BTree {
             // in the metric. Just start at the top and descend instead.
 
             // measure the our current position
-            let measure = measure(upTo: leafStart, using: metric)
+            let measure = measure(upTo: offsetOfLeaf, using: metric)
             descend(toLeafContaining: measure+1, asMeasuredBy: metric)
 
             if let offset = next(withinLeafUsing: metric) {
@@ -189,7 +194,7 @@ extension BTree {
             // we're at the end
             assert(position == root!.count)
             leaf = nil
-            leafStart = -1
+            offsetOfLeaf = -1
             return nil
         }
 
@@ -214,7 +219,7 @@ extension BTree {
                 return nil
             }
 
-            position = leafStart + newOffsetInLeaf
+            position = offsetOfLeaf + newOffsetInLeaf
 
             if position == 0 {
                 return nil
@@ -233,10 +238,10 @@ extension BTree {
 
             // TODO: is it possible that this is only true for leading boundaries? If so
             // do we need it? Right now, we only have trailing boundaries.
-            if newOffsetInLeaf == leaf.count && leafStart + newOffsetInLeaf != root!.count {
+            if newOffsetInLeaf == leaf.count && offsetOfLeaf + newOffsetInLeaf != root!.count {
                 nextLeaf()
             } else {
-                position = leafStart + newOffsetInLeaf
+                position = offsetOfLeaf + newOffsetInLeaf
             }
 
             if position == root!.count {
@@ -258,7 +263,7 @@ extension BTree {
                 // we're at the end, go to the start of the last leaf
                 position -= 1
                 descend()
-                position = leafStart
+                position = offsetOfLeaf
                 return read()
             }
 
@@ -278,8 +283,8 @@ extension BTree {
                 node = node.children[node.children.count - 1]
             }
 
-            self.leafStart -= node.count
-            self.position = leafStart
+            self.offsetOfLeaf -= node.count
+            self.position = offsetOfLeaf
             self.leaf = node.leaf
             return read()
         }
@@ -296,12 +301,12 @@ extension BTree {
                 return nil
             }
 
-            self.position = leafStart + leaf.count
+            self.position = offsetOfLeaf + leaf.count
 
             if position == root!.count {
                 self.path = []
                 self.leaf = nil
-                self.leafStart = -1
+                self.offsetOfLeaf = -1
                 return nil
             }
 
@@ -321,7 +326,7 @@ extension BTree {
                 node = node.children[0]
             }
 
-            self.leafStart = position
+            self.offsetOfLeaf = position
             self.leaf = node.leaf
             return read()
         }
@@ -383,7 +388,7 @@ extension BTree {
 
             self.leaf = node.leaf
             self.position = offset
-            self.leafStart = offset
+            self.offsetOfLeaf = offset
         }
 
         func validate(for root: Node) {
