@@ -232,11 +232,6 @@ extension Rope: RangeReplaceableCollection {
         b.push(string: newElements)
         self.root = b.build()
     }
-
-    // override the default behavior
-    mutating func reserveCapacity(_ n: Int) {
-        // no-op
-    }
 }
 
 extension Rope {

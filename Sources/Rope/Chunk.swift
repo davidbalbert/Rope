@@ -114,13 +114,15 @@ struct Chunk: BTreeLeaf {
     //      grapheme cluster.
     //    - second.prefixCount == 1 because U+0301 now combined with the "e",
     //      so Swift's special behavior of treating it as its own character
-    //      because it's at the beginning of the string no longer apples.
+    //      because it's at the beginning of the string no longer applies.
     //
     // When does this have to be called?
-    // - When we modify a chunk with push(possiblySplitting:). Consider calling
-    //   that on chunk C1.
-    //   - If it returns nil, then we have to call C1.fixup(previous: prev(C1)) and
-    //     next(C1).fixup(previous: C1).
+    // - When we modify a chunk with push(possiblySplitting:). Consider the sequence
+    //   [C0, C1, C2] where we call push(possiblySplitting:) on C1.
+    //   - If it returns nil, then we have to call C1.fixup(next: &C2). This is because
+    //     C2 might start with a combining character... Do we even need to do this?
+    //     If C2 was already present and had a combining character
+    //
     //   - If it returns a new chunk C2, then we have to call C1.fixup(previous: prev(C1))
     //     and next(C2).fixup(previous: C2). This assumes that C1's suffix and C2's prefix
     //     are already correct.
@@ -132,7 +134,7 @@ struct Chunk: BTreeLeaf {
     //   are probably more as well. This will take a lot of thinking.
     //     
     // I also have to make sure prefixCount and suffixCount stay on UnicodeScalar boundaries.
-    mutating func fixup(previous: inout Chunk?) {
+    mutating func fixup(next: inout Chunk?) {
         // TODO
     }
 

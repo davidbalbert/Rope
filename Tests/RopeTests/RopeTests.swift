@@ -337,7 +337,6 @@ final class RopeTests: XCTestCase {
         // 'combining accute accent' + "b"*999
         r.append("\u{0301}" + String(repeating: "b", count: 999))
 
-
         XCTAssertEqual(1, r.root.height)
         XCTAssertEqual(2, r.root.children.count)
 

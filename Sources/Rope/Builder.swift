@@ -85,6 +85,7 @@ extension BTree {
             }
 
             if range == 0..<node.count {
+                // TODO: add a comment explaining why this clone() is needed
                 var n = node.clone()
                 push(&n)
                 return
@@ -123,7 +124,7 @@ extension BTree {
             } else {
                 // We are able to throw away isUnique for all our children, because
                 // inside Builder, we only care about the uniqueness of the nodes
-                // directly on teh stack.
+                // directly on the stack.
                 //
                 // In general, we do still care if some nodes are unique – specifically
                 // when concatinating two nodes, the rightmost branch of the left tree
