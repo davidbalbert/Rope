@@ -7,6 +7,35 @@
 
 import Foundation
 
+extension BTree {
+    var leaves: LeavesView {
+        LeavesView(base: self)
+    }
+
+    struct LeavesView {
+        var base: BTree
+    }
+}
+
+extension BTree.LeavesView: Sequence {
+    struct Iterator: IteratorProtocol {
+        var index: BTree.Index
+
+        mutating func next() -> Summary.Leaf? {
+            guard let (leaf, _) = index.read() else {
+                return nil
+            }
+
+            index.nextLeaf()
+            return leaf
+        }
+    }
+
+    func makeIterator() -> Iterator {
+        Iterator(index: BTree.Index(startOf: base.root))
+    }
+}
+
 // N.b. These will be accessable as BTree.*View, BTree<RopeSummary>.*View,
 // and Rope.*View, but not BTree<SomeOtherSummary>.*View.
 extension Rope {
@@ -16,10 +45,13 @@ extension Rope {
 
     struct UTF8View {
         var base: Rope
+    }
+}
 
-        var count: Int {
-            base.root.measure(using: .utf8)
-        }
+// TODO: make this extension implement BidirectionalCollection
+extension Rope.UTF8View {
+    var count: Int {
+        base.root.measure(using: .utf8)
     }
 }
 
@@ -30,10 +62,13 @@ extension Rope {
 
     struct UTF16View {
         var base: Rope
+    }
+}
 
-        var count: Int {
-            base.root.measure(using: .utf16)
-        }
+// TODO: make this extension implement BidirectionalCollection
+extension Rope.UTF16View {
+    var count: Int {
+        base.root.measure(using: .utf16)
     }
 }
 
@@ -44,10 +79,55 @@ extension Rope {
 
     struct UnicodeScalarView {
         var base: Rope
+    }
+}
 
-        var count: Int {
-            base.root.measure(using: .unicodeScalars)
+extension Rope.UnicodeScalarView: BidirectionalCollection {
+    struct Iterator: IteratorProtocol {
+        var index: Rope.Index
+
+        mutating func next() -> Unicode.Scalar? {
+            let scalar = index.readScalar()
+            index.next(using: .unicodeScalars)
+            return scalar
         }
+    }
+
+    func makeIterator() -> Iterator {
+        Iterator(index: Index(startOf: base.root))
+    }
+
+    var startIndex: Rope.Index {
+        base.startIndex
+    }
+
+    var endIndex: Rope.Index {
+        base.endIndex
+    }
+
+    subscript(position: Rope.Index) -> Unicode.Scalar {
+        position.validate(for: base.root)
+        return position.readScalar()!
+    }
+
+    func index(before i: Rope.Index) -> Rope.Index {
+        base.index(before: i, using: .unicodeScalars)
+    }
+
+    func index(after i: Rope.Index) -> Rope.Index {
+        base.index(after: i, using: .unicodeScalars)
+    }
+
+    func index(_ i: Rope.Index, offsetBy distance: Int) -> Rope.Index {
+        base.index(i, offsetBy: distance, using: .unicodeScalars)
+    }
+
+    func index(_ i: Rope.Index, offsetBy distance: Int, limitedBy limit: Rope.Index) -> Rope.Index? {
+        base.index(i, offsetBy: distance, limitedBy: limit, using: .unicodeScalars)
+    }
+
+    var count: Int {
+        base.root.measure(using: .unicodeScalars)
     }
 }
 
@@ -58,38 +138,12 @@ extension Rope {
 
     struct LinesView {
         var base: Rope
-
-        var count: Int {
-            base.root.measure(using: .newlines) + 1
-        }
     }
 }
 
-extension Rope {
-    var chunks: ChunksView {
-        ChunksView(base: self)
-    }
-
-    struct ChunksView {
-        var base: Rope
-    }
-}
-
-extension Rope.ChunksView: Sequence {
-    struct Iterator: IteratorProtocol {
-        var index: Rope.Index
-
-        mutating func next() -> Chunk? {
-            guard let (chunk, _) = index.read() else {
-                return nil
-            }
-
-            index.nextLeaf()
-            return chunk
-        }
-    }
-
-    func makeIterator() -> Iterator {
-        Iterator(index: Rope.Index(startOf: base.root))
+// TODO: make this extension implement BidirectionalCollection
+extension Rope.LinesView {
+    var count: Int {
+        base.root.measure(using: .newlines) + 1
     }
 }

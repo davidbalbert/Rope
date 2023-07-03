@@ -33,20 +33,8 @@ extension String {
     init(_ rope: Rope) {
         self.init()
         self.reserveCapacity(rope.utf8.count)
-        for chunk in rope.chunks {
+        for chunk in rope.leaves {
             append(chunk.string)
         }
-    }
-
-    func isValidUTF16Index(_ i: String.Index) -> Bool {
-        i.samePosition(in: utf16) != nil
-    }
-
-    func isValidUnicodeScalarIndex(_ i: String.Index) -> Bool {
-        i.samePosition(in: unicodeScalars) != nil
-    }
-
-    func isValidCharacterIndex(_ i: String.Index) -> Bool {
-        i.samePosition(in: self) != nil
     }
 }

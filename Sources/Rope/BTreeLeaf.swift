@@ -15,8 +15,6 @@ protocol BTreeLeaf {
     var isUndersized: Bool { get }
     mutating func push(possiblySplitting other: Self) -> Self?
 
-    mutating func fixup(next: inout Self?)
-
     // Specified in base units. Should be O(1).
     subscript(bounds: Range<Int>) -> Self { get }
 }

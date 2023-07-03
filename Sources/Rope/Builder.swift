@@ -1,6 +1,6 @@
 //
 //  Builder.swift
-//  
+//
 //
 //  Created by David Albert on 6/12/23.
 //
@@ -85,7 +85,7 @@ extension BTree {
             }
 
             if range == 0..<node.count {
-                // TODO: add a comment explaining why this clone() is needed
+                // TODO: figure out and explain why we need to unconditionally clone here
                 var n = node.clone()
                 push(&n)
                 return

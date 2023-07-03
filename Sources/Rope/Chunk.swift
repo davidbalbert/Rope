@@ -25,6 +25,31 @@ struct Chunk: BTreeLeaf {
         return count
     }
 
+    static func boundaryForBulkInsert(_ s: Substring) -> String.Index {
+        chunkBoundary(for: s, startingAt: Chunk.minSize)
+    }
+
+    static func boundaryForMerge(_ s: Substring) -> String.Index {
+        // for the smallest chunk that needs splitting (n = maxSize + 1 = 1024):
+        // minSplit = max(511, 1024 - 1023) = max(511, 1) = 511
+        // maxSplit = min(1023, 1024 - 511) = min(1023, 513) = 513
+        chunkBoundary(for: s, startingAt: max(Chunk.minSize, s.utf8.count - Chunk.maxSize))
+    }
+
+    static func chunkBoundary(for s: Substring, startingAt minSplit: Int) -> String.Index {
+        let maxSplit = min(Chunk.maxSize, s.utf8.count - Chunk.minSize)
+
+        let nl = UInt8(ascii: "\n")
+        let lineBoundary = s.withExistingUTF8 { buf in
+            buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
+        }
+
+        let offset = lineBoundary ?? maxSplit
+        let i = s.utf8Index(at: offset)
+        // TODO: this is SPI. Hopefully it gets exposed soon.
+        return s.unicodeScalars._index(roundingDown: i)
+    }
+
     var string: String
     var prefixCount: Int
     var suffixCount: Int
@@ -63,37 +88,41 @@ struct Chunk: BTreeLeaf {
     }
 
     mutating func push(possiblySplitting other: Chunk) -> Chunk? {
+        let nprev = string.utf8.count
         string += other.string
-        let n = string.utf8.count
 
-        if n <= Chunk.maxSize {
+        if string.utf8.count <= Chunk.maxSize {
+            // TODO: prefix count should stay the same. Start from there and update suffixCount.
+
             return nil
         } else {
-            // for the smallest chunk that needs splitting (n = maxSize + 1 = 1024):
-            // minSplit = max(511, 1024 - 1023) = max(511, 1) = 511
-            // maxSplit = min(1023, 1024 - 511) = min(1023, 513) = 513
+            let i = Chunk.boundaryForMerge(string[...])
 
-            let minSplit = Swift.max(Chunk.minSize, n - Chunk.maxSize)
-            let maxSplit = Swift.min(Chunk.maxSize, n - Chunk.minSize)
+            let n = string.utf8.distance(from: string.startIndex, to: i)
 
-            let nl = UInt8(ascii: "\n")
-            let lineBoundary = string.withExistingUTF8 { buf in
-                buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
-            }
+            // the problem here is that if prefixCount == suffixCount == nprev,
+            // we need to search back to a potentially arbitrary prior chunk
+            // in order to build up our GraphemeBreaker
 
-            let offset = lineBoundary ?? maxSplit
-            let idx = string.utf8.index(string.startIndex, offsetBy: offset)
-            // TODO: this is SPI. Hopefully it gets exposed soon.
-            let adjusted = string.unicodeScalars._index(roundingDown: idx)
+            // TODO!
+            let newPrefixCount = min(prefixCount, n)
+            let newSuffixCount = min(suffixCount, n)
 
-            // TODO: update self.prefixCount and self.suffixCount
+            // prefix count could in theory end up shorter
+            // suffixCount starts correct.
 
-            let rest = String(string.unicodeScalars[adjusted...])
-            string = String(string.unicodeScalars[..<adjusted])
+            let rest = String(string.unicodeScalars[i...])
+            string = String(string.unicodeScalars[..<i])
 
             // TODO: prefixCount, suffixCount
             return Chunk(rest, prefixCount: 0, suffixCount: 0)
         }
+    }
+
+    // Returns true if we're in sync, false if we need to sync the next Chunk.
+    mutating func resyncBreaks(old: inout Rope.GraphemeBreaker, new: inout Rope.GraphemeBreaker) -> Bool {
+        // TODO: The next step is to resync breaks in
+        false
     }
 
     // Why do we need fixup(previous:)? Consider these this example:
@@ -134,9 +163,6 @@ struct Chunk: BTreeLeaf {
     //   are probably more as well. This will take a lot of thinking.
     //     
     // I also have to make sure prefixCount and suffixCount stay on UnicodeScalar boundaries.
-    mutating func fixup(next: inout Chunk?) {
-        // TODO
-    }
 
     subscript(bounds: Range<Int>) -> Chunk {
         let start = string.utf8Index(at: bounds.lowerBound).samePosition(in: string.unicodeScalars)
@@ -169,5 +195,17 @@ struct Chunk: BTreeLeaf {
         }
 
         return count
+    }
+
+    func isValidUTF16Index(_ i: String.Index) -> Bool {
+        i.samePosition(in: string.utf16) != nil
+    }
+
+    func isValidUnicodeScalarIndex(_ i: String.Index) -> Bool {
+        i.samePosition(in: string.unicodeScalars) != nil
+    }
+
+    func isValidCharacterIndex(_ i: String.Index) -> Bool {
+        i == characters._index(roundingDown: i)
     }
 }

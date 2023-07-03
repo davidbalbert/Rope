@@ -80,7 +80,7 @@ extension Rope.Index {
         }
 
         let i = chunk.string.utf8Index(at: offset)
-        assert(chunk.string.isValidUTF16Index(i))
+        assert(chunk.isValidUTF16Index(i))
 
         return chunk.string.utf16[i]
     }
@@ -91,7 +91,7 @@ extension Rope.Index {
         }
 
         let i = chunk.string.utf8Index(at: offset)
-        assert(chunk.string.isValidUnicodeScalarIndex(i))
+        assert(chunk.isValidUnicodeScalarIndex(i))
 
         return chunk.string.unicodeScalars[i]
     }
@@ -104,7 +104,7 @@ extension Rope.Index {
         let i = chunk.string.utf8Index(at: offset)
 
         assert(i >= chunk.firstBreak && i <= chunk.lastBreak)
-        assert(chunk.string.isValidCharacterIndex(i))
+        assert(chunk.isValidCharacterIndex(i))
 
         if chunk.suffixCount == 0 || i < chunk.lastBreak {
             // the common case, the full character is in this chunk
@@ -131,10 +131,7 @@ extension Rope.Index {
     }
 }
 
-// TODO: audit Collection, BidirectionalCollection and RangeReplaceableCollection for performance.
-// Specifically, we know the following methods could be more efficient:
-//
-// - index(_:offsetBy:limitedBy:) -- ditto
+// TODO: audit default methods from Collection, BidirectionalCollection and RangeReplaceableCollection for performance.
 extension Rope: Collection {
     var count: Int {
         root.measure(using: .characters)
@@ -150,66 +147,42 @@ extension Rope: Collection {
     
     subscript(position: Index) -> Character {
         position.validate(for: root)
-        let (chunk, offset) = position.read()!
-        return chunk.string[chunk.string.utf8Index(at: offset)]
+        let position = index(roundingDown: position)
+        return position.readChar()!
     }
 
     subscript(bounds: Range<Index>) -> Rope {
         bounds.lowerBound.validate(for: root)
         bounds.upperBound.validate(for: root)
 
-        var r = root
+        let start = index(roundingDown: bounds.lowerBound)
+        let end = index(roundingDown: bounds.upperBound)
 
-        var b = Builder()
-        b.push(&r, slicedBy: Range(bounds))
-        return Rope(b.build())
+        var sliced = Rope(self, slicedBy: Range(start..<end))
+
+        var old = GraphemeBreaker(in: self, upTo: start)
+        var new = GraphemeBreaker()
+        sliced.resyncBreaks(old: &old, new: &new)
+
+        return sliced
     }
 
     func index(after i: Index) -> Index {
-        i.validate(for: root)
-        
-        var i = i
-        i.next(using: .characters)
-        return i
+        index(after: i, using: .characters)
     }
 
     func index(_ i: Index, offsetBy distance: Int) -> Index {
-        i.validate(for: root)
-
-        var i = i
-        let m = root.count(.characters, upThrough: i.position)
-        let pos = root.offset(of: m + distance, measuredIn: .characters)
-        i.set(pos)
-
-        return i
+        index(i, offsetBy: distance, using: .characters)
     }
 
     func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
-        i.validate(for: root)
-        limit.validate(for: root)
-
-        let l = limit.position - i.position
-        if distance > 0 ? l >= 0 && l < distance : l <= 0 && distance < l {
-            return nil
-        }
-
-        // This is the body of index(_:offsetBy:) skipping the validation
-        var i = i
-        let m = root.count(.characters, upThrough: i.position)
-        let pos = root.offset(of: m + distance, measuredIn: .characters)
-        i.set(pos)
-
-        return i
+        index(i, offsetBy: distance, limitedBy: limit, using: .characters)
     }
 }
 
 extension Rope: BidirectionalCollection {
     func index(before i: Index) -> Index {
-        i.validate(for: root)
-
-        var i = i
-        i.prev(using: .characters)
-        return i
+        index(before: i, using: .characters)
     }
 }
 
@@ -217,11 +190,20 @@ extension Rope: RangeReplaceableCollection {
     mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C: Collection, C.Element == Element {
         subrange.lowerBound.validate(for: root)
         subrange.upperBound.validate(for: root)
-        
+
+        let subrange = index(roundingDown: subrange.lowerBound)..<index(roundingDown: subrange.upperBound)
+
+        var old = GraphemeBreaker(...)
+        var new = GraphemeBreaker(in: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
+
         var b = Builder()
         b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
-        b.push(string: newElements)
-        b.push(&root, slicedBy: Range(subrange.upperBound..<endIndex))
+        b.push(string: newElements, breaker: &new)
+
+        var rest = Rope(self, slicedBy: Range(subrange.upperBound..<endIndex))
+        rest.resyncBreaks(old: &old, new: &new)
+        b.push(&rest.root, slicedBy: Range(subrange.upperBound..<endIndex))
+
         self.root = b.build()
     }
 
@@ -239,6 +221,10 @@ extension Rope {
         let i = Index(offsetBy: offset, in: root)
         return self[i]
     }
+
+    func index(roundingDown i: Index) -> Index {
+        index(roundingDown: i, using: .characters)
+    }
 }
 
 extension Rope {
@@ -247,43 +233,128 @@ extension Rope {
     }
 }
 
+extension Rope {
+    struct GraphemeBreaker {
+        var recognizer: Unicode._CharacterRecognizer
+
+        init() {
+            recognizer = Unicode._CharacterRecognizer()
+        }
+
+        init(_ recognizer: Unicode._CharacterRecognizer) {
+            self.recognizer = recognizer
+        }
+
+        // assumes upperBound is valid in rope
+        init(in rope: Rope, upTo upperBound: Rope.Index, withKnownNextScalar next: Unicode.Scalar? = nil) {
+            assert(upperBound.isBoundary(in: .unicodeScalars))
+
+            if rope.isEmpty || upperBound.position == 0 {
+                self.init()
+                return
+            }
+
+            if let next {
+                let i = rope.unicodeScalars.index(before: upperBound)
+                let prev = rope.unicodeScalars[i]
+
+                if Unicode._CharacterRecognizer.quickBreak(between: prev, and: next) ?? false {
+                    self.init()
+                    return
+                }
+            }
+
+            var i = rope.index(roundingDown: upperBound, using: .characters)
+
+            if i == upperBound {
+                self.init()
+                return
+            }
+
+            var r = Unicode._CharacterRecognizer()
+            while i < upperBound {
+                let b = r.hasBreak(before: rope.unicodeScalars[i])
+                assert(!b)
+                rope.unicodeScalars.formIndex(after: &i)
+            }
+
+            self.init(r)
+        }
+
+        mutating func firstBreak(in s: Substring) -> Range<String.Index>? {
+            let r = s.withExistingUTF8 { buf in
+                recognizer._firstBreak(inUncheckedUnsafeUTF8Buffer: buf)
+            }
+
+            if let r {
+                return s.utf8Index(at: r.lowerBound)..<s.utf8Index(at: r.upperBound)
+            } else {
+                return nil
+            }
+        }
+    }
+}
+
+extension Rope {
+    mutating func resyncBreaks(old: inout GraphemeBreaker, new: inout GraphemeBreaker) {
+        var b = Builder()
+
+        var i = startIndex
+        while var (chunk, _) = i.read() {
+            let done = chunk.resyncBreaks(old: &old, new: &new)
+            b.push(leaf: chunk)
+            i.nextLeaf()
+
+            if done {
+                break
+            }
+        }
+
+        b.push(&root, slicedBy: i.position..<root.count)
+        root = b.build()
+    }
+}
+
 extension Rope.Builder {
-    mutating func push(string: some Sequence<Character>) {
+    mutating func push(string: some Sequence<Character>, breaker: inout Rope.GraphemeBreaker) {
         var string = String(string)
         string.makeContiguousUTF8()
 
-        var s = string[...]
+        var i = string.startIndex
 
-        while !s.isEmpty {
-            let n = s.utf8.count
+        while i < string.endIndex {
+            let n = string.utf8.distance(from: i, to: string.endIndex)
 
+            let end: String.Index
             if n <= Chunk.maxSize {
-                // TODO: prefixCount, suffixCount
-                push(leaf: Chunk(s, prefixCount: 0, suffixCount: 0))
-                s = s[s.endIndex...]
+                end = string.endIndex
             } else {
-                let i: String.Index
-                if n > Chunk.maxSize {
-                    let minSplit = Chunk.minSize
-                    let maxSplit = Swift.min(Chunk.maxSize, n - Chunk.minSize)
-
-                    let nl = UInt8(ascii: "\n")
-                    let lineBoundary = s.withExistingUTF8 { buf in
-                        buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
-                    }
-
-                    let offset = lineBoundary ?? maxSplit
-                    let codepoint = s.utf8Index(at: offset)
-                    // TODO: this is SPI. Hopefully it gets exposed soon.
-                    i = s.unicodeScalars._index(roundingDown: codepoint)
-                } else {
-                    i = s.endIndex
-                }
-
-                // TODO: prefixCount, suffixCount
-                push(leaf: Chunk(s[..<i], prefixCount: 0, suffixCount: 0))
-                s = s[i...]
+                end = Chunk.boundaryForBulkInsert(string[i...])
             }
+
+            var s = string[i..<end]
+
+            guard let r = breaker.firstBreak(in: s) else {
+                // uncommon, no character boundaries
+                let c = s.utf8.count
+                push(leaf: Chunk(s[..<end], prefixCount: c, suffixCount: c))
+                continue
+            }
+
+            let first = r.lowerBound
+            s = s[r.upperBound...]
+
+            var last = first
+            while let r = breaker.firstBreak(in: s) {
+                last = r.lowerBound
+                s = s[r.upperBound...]
+            }
+
+            let prefixCount = string.utf8.distance(from: i, to: first)
+            let suffixCount = string.utf8.distance(from: last, to: end)
+
+            push(leaf: Chunk(string[i..<end], prefixCount: prefixCount, suffixCount: suffixCount))
+            i = end
         }
     }
 }
@@ -381,14 +452,14 @@ struct UnicodeScalarMetric: BTreeMetric {
         let startIndex = chunk.string.startIndex
         let i = chunk.string.utf8Index(at: baseUnits)
 
-        assert(chunk.string.isValidUnicodeScalarIndex(i))
+        assert(chunk.isValidUnicodeScalarIndex(i))
 
         return chunk.string.unicodeScalars.distance(from: startIndex, to: i)
     }
     
     func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
         let i = chunk.string.utf8Index(at: offset)
-        return chunk.string.isValidUnicodeScalarIndex(i)
+        return chunk.isValidUnicodeScalarIndex(i)
     }
     
     func prev(_ offset: Int, in chunk: Chunk) -> Int? {
@@ -433,7 +504,7 @@ struct CharacterMetric: BTreeMetric {
         let startIndex = chunk.characters.startIndex
         let i = chunk.characters.index(startIndex, offsetBy: measuredUnits)
 
-        assert(chunk.string.isValidCharacterIndex(i))
+        assert(chunk.isValidCharacterIndex(i))
         assert(measuredUnits < chunk.characters.count)
 
         return chunk.prefixCount + chunk.string.utf8.distance(from: startIndex, to: i)
@@ -444,14 +515,21 @@ struct CharacterMetric: BTreeMetric {
         let startIndex = chunk.characters.startIndex
         let i = chunk.string.utf8Index(at: baseUnits)
 
-        assert(chunk.string.isValidCharacterIndex(i))
+        assert(chunk.isValidCharacterIndex(i))
 
         return chunk.characters.distance(from: startIndex, to: i)
     }
-    
+
+    // TODO: make sure this metric works with position == 0. I think it does.
+    // Also make sure it works with offset == chunk.count, which happens
+    // for offsetInLeaf == 0 for other chunks.
     func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
+        if offset < chunk.prefixCount || offset > chunk.suffixCount {
+            return false
+        }
+
         let i = chunk.string.utf8Index(at: offset)
-        return chunk.string.isValidCharacterIndex(i)
+        return chunk.isValidCharacterIndex(i)
     }
     
     func prev(_ offset: Int, in chunk: Chunk) -> Int? {
@@ -510,7 +588,6 @@ struct NewlinesMetric: BTreeMetric {
     }
     
     func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-        // TODO: what about the first chunk in the string? Offset 0 there should be a newline because this is a trailing metric.
         if offset == 0 {
             return false
         } else {
