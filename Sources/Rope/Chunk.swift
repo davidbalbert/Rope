@@ -87,6 +87,8 @@ struct Chunk: BTreeLeaf {
         self.suffixCount = suffixCount
     }
 
+    // Can we assume that Chunk's prefix count is correct, and start from there?
+    // I think not. We might need to pass in a breaker, which is a problem.
     mutating func push(possiblySplitting other: Chunk) -> Chunk? {
         let nprev = string.utf8.count
         string += other.string
@@ -121,8 +123,43 @@ struct Chunk: BTreeLeaf {
 
     // Returns true if we're in sync, false if we need to sync the next Chunk.
     mutating func resyncBreaks(old: inout Rope.GraphemeBreaker, new: inout Rope.GraphemeBreaker) -> Bool {
-        // TODO: The next step is to resync breaks in
-        false
+        var i = string.startIndex
+        var first: String.Index?
+        var last: String.Index?
+
+        while i < string.unicodeScalars.endIndex {
+            let scalar = string.unicodeScalars[i]
+            let a = old.hasBreak(before: scalar)
+            let b = new.hasBreak(before: scalar)
+
+            if b {
+                first = first ?? i
+                last = i
+            }
+
+            if a && b {
+                // Found the same break. We're done
+                break
+            } else if !a && !b && old == new {
+                // GraphemeBreakers are in the same state. We're done.
+                break
+            }
+
+            string.unicodeScalars.formIndex(after: &i)
+        }
+
+        guard let first, let last else {
+            // the chunk has no break, we need to continue to the next chunk.
+            prefixCount = string.utf8.count
+            suffixCount = string.utf8.count
+            return true
+        }
+
+        prefixCount = string.utf8.distance(from: string.startIndex, to: first)
+        suffixCount = string.utf8.distance(from: last, to: string.endIndex)
+
+        // we're done if we stopped iterating before processing the whole chunk
+        return i < string.endIndex
     }
 
     // Why do we need fixup(previous:)? Consider these this example:

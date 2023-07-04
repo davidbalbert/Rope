@@ -193,8 +193,10 @@ extension Rope: RangeReplaceableCollection {
 
         let subrange = index(roundingDown: subrange.lowerBound)..<index(roundingDown: subrange.upperBound)
 
-        var old = GraphemeBreaker(...)
         var new = GraphemeBreaker(in: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
+        // TODO: can we use unicodeScalars[subrange.upperBound] for withKnownNextScalar? I think we probably can, but we have
+        // to make sure that subrange.upperBound != endIndex.
+        var old = GraphemeBreaker(in: self, upTo: subrange.upperBound)
 
         var b = Builder()
         b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
@@ -202,7 +204,7 @@ extension Rope: RangeReplaceableCollection {
 
         var rest = Rope(self, slicedBy: Range(subrange.upperBound..<endIndex))
         rest.resyncBreaks(old: &old, new: &new)
-        b.push(&rest.root, slicedBy: Range(subrange.upperBound..<endIndex))
+        b.push(&rest.root)
 
         self.root = b.build()
     }
@@ -210,8 +212,10 @@ extension Rope: RangeReplaceableCollection {
     // The deafult implementation calls append(_:) in a loop. This should be faster.
     mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Element {
         var b = Builder()
+        var br = GraphemeBreaker(in: self, upTo: endIndex)
+
         b.push(&root)
-        b.push(string: newElements)
+        b.push(string: newElements, breaker: &br)
         self.root = b.build()
     }
 }
@@ -234,7 +238,7 @@ extension Rope {
 }
 
 extension Rope {
-    struct GraphemeBreaker {
+    struct GraphemeBreaker: Equatable {
         var recognizer: Unicode._CharacterRecognizer
 
         init() {
@@ -281,6 +285,10 @@ extension Rope {
             self.init(r)
         }
 
+        mutating func hasBreak(before next: Unicode.Scalar) -> Bool {
+            recognizer.hasBreak(before: next)
+        }
+
         mutating func firstBreak(in s: Substring) -> Range<String.Index>? {
             let r = s.withExistingUTF8 { buf in
                 recognizer._firstBreak(inUncheckedUnsafeUTF8Buffer: buf)
@@ -290,6 +298,13 @@ extension Rope {
                 return s.utf8Index(at: r.lowerBound)..<s.utf8Index(at: r.upperBound)
             } else {
                 return nil
+            }
+        }
+
+        mutating func consume(_ s: Substring) {
+            for u in s.unicodeScalars {
+                let b = recognizer.hasBreak(before: u)
+                assert(b)
             }
         }
     }
