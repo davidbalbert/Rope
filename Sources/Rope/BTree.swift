@@ -34,8 +34,8 @@ struct BTree<Summary> where Summary: BTreeSummary {
     }
 
     init(_ tree: BTree, slicedBy range: Range<Int>) {
-        assert(range.lowerBound >= 0 && range.lowerBound < tree.root.count)
-        assert(range.upperBound >= 0 && range.upperBound < tree.root.count)
+        assert(range.lowerBound >= 0 && range.lowerBound <= tree.root.count)
+        assert(range.upperBound >= 0 && range.upperBound <= tree.root.count)
 
         var r = tree.root
 
@@ -101,5 +101,13 @@ extension BTree where Summary: BTreeDefaultMetric {
         }
 
         return index(before: i, using: metric)
+    }
+
+    func index(roundingDownToNearestLeaf i: Index) -> Index {
+        i.validate(for: root)
+
+        var i = i
+        i.floorLeaf()! // a valid index will always have a leaf
+        return i
     }
 }

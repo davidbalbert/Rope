@@ -193,10 +193,10 @@ extension Rope: RangeReplaceableCollection {
 
         let subrange = index(roundingDown: subrange.lowerBound)..<index(roundingDown: subrange.upperBound)
 
-        var new = GraphemeBreaker(for: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
         // TODO: can we use unicodeScalars[subrange.upperBound] for withKnownNextScalar? I think we probably can, but we have
         // to make sure that subrange.upperBound != endIndex.
-        var old = GraphemeBreaker(for: self, upTo: subrange.upperBound)
+        var old = GraphemeBreaker(for: self, upTo: subrange.upperBound, withKnownNextScalar: subrange.upperBound == endIndex ? nil : unicodeScalars[subrange.upperBound])
+        var new = GraphemeBreaker(for: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
 
         var b = Builder()
         b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
@@ -239,6 +239,12 @@ extension Rope {
 
 extension Rope {
     struct GraphemeBreaker: Equatable {
+        #if swift(<5.9)
+        static func == (lhs: BTree<Summary>.GraphemeBreaker, rhs: BTree<Summary>.GraphemeBreaker) -> Bool {
+            false
+        }
+        #endif
+
         var recognizer: Unicode._CharacterRecognizer
 
         init() {
@@ -268,22 +274,59 @@ extension Rope {
                 }
             }
 
-            var i = rope.index(roundingDown: upperBound, using: .characters)
-
-            if i == upperBound {
+            if upperBound.isBoundary(in: .characters) {
                 self.init()
                 return
             }
 
-            var r = Unicode._CharacterRecognizer()
-            while i < upperBound {
-                let b = r.hasBreak(before: rope.unicodeScalars[i])
-                assert(!b)
-                rope.unicodeScalars.formIndex(after: &i)
+            let (chunk, offset) = upperBound.read()!
+            let end = chunk.string.utf8Index(at: offset)
+            var r = chunk.breaker.recognizer
+
+            var i = chunk.string.startIndex
+            while i < end {
+                _ = r.hasBreak(before: chunk.string.unicodeScalars[i])
+                chunk.string.unicodeScalars.formIndex(after: &i)
             }
 
             self.init(r)
         }
+
+        // assumes upperBound is valid in rope
+//        init(for rope: Rope, upTo upperBound: Rope.Index, withKnownNextScalar next: Unicode.Scalar? = nil) {
+//            assert(upperBound.isBoundary(in: .unicodeScalars))
+//
+//            if rope.isEmpty || upperBound.position == 0 {
+//                self.init()
+//                return
+//            }
+//
+//            if let next {
+//                let i = rope.unicodeScalars.index(before: upperBound)
+//                let prev = rope.unicodeScalars[i]
+//
+//                if Unicode._CharacterRecognizer.quickBreak(between: prev, and: next) ?? false {
+//                    self.init()
+//                    return
+//                }
+//            }
+//
+//            var i = rope.index(roundingDown: upperBound, using: .characters)
+//
+//            if i == upperBound {
+//                self.init()
+//                return
+//            }
+//
+//            var r = Unicode._CharacterRecognizer()
+//            while i < upperBound {
+//                let b = r.hasBreak(before: rope.unicodeScalars[i])
+//                assert(!b)
+//                rope.unicodeScalars.formIndex(after: &i)
+//            }
+//
+//            self.init(r)
+//        }
 
         mutating func hasBreak(before next: Unicode.Scalar) -> Bool {
             recognizer.hasBreak(before: next)
@@ -303,8 +346,7 @@ extension Rope {
 
         mutating func consume(_ s: Substring) {
             for u in s.unicodeScalars {
-                let b = recognizer.hasBreak(before: u)
-                assert(b)
+                _ = recognizer.hasBreak(before: u)
             }
         }
     }
@@ -347,28 +389,7 @@ extension Rope.Builder {
                 end = Chunk.boundaryForBulkInsert(string[i...])
             }
 
-            var s = string[i..<end]
-
-            guard let r = breaker.firstBreak(in: s) else {
-                // uncommon, no character boundaries
-                let c = s.utf8.count
-                push(leaf: Chunk(s[..<end], prefixCount: c, suffixCount: c))
-                continue
-            }
-
-            let first = r.lowerBound
-            s = s[r.upperBound...]
-
-            var last = first
-            while let r = breaker.firstBreak(in: s) {
-                last = r.lowerBound
-                s = s[r.upperBound...]
-            }
-
-            let prefixCount = string.utf8.distance(from: i, to: first)
-            let suffixCount = string.utf8.distance(from: last, to: end)
-
-            push(leaf: Chunk(string[i..<end], prefixCount: prefixCount, suffixCount: suffixCount))
+            push(leaf: Chunk(string[i..<end], breaker: &breaker))
             i = end
         }
     }
@@ -535,11 +556,14 @@ struct CharacterMetric: BTreeMetric {
         return chunk.characters.distance(from: startIndex, to: i)
     }
 
-    // TODO: make sure this metric works with position == 0. I think it does.
-    // Also make sure it works with offset == chunk.count, which happens
-    // for offsetInLeaf == 0 for other chunks.
     func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-        if offset < chunk.prefixCount || offset > chunk.suffixCount {
+        // The only time offset will equal chunk.count is
+        // when chunk is the last offset of the rope.
+        if offset == chunk.count {
+            return true
+        }
+
+        if offset < chunk.prefixCount || offset > chunk.count - chunk.suffixCount {
             return false
         }
 

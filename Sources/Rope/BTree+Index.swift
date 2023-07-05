@@ -220,6 +220,10 @@ extension BTree {
         mutating func prev(withinLeafUsing metric: some BTreeMetric<Summary>) -> Int? {
             assert(root != nil)
 
+            if position == 0 {
+                return nil
+            }
+
             guard let leaf else {
                 return nil
             }
@@ -229,10 +233,6 @@ extension BTree {
             }
 
             position = offsetOfLeaf + newOffsetInLeaf
-
-            if position == 0 {
-                return nil
-            }
 
             return position
         }
@@ -300,13 +300,13 @@ extension BTree {
                 return nil
             }
 
+            self.position = offsetOfLeaf + leaf.count
+
             if offsetOfLeaf + leaf.count == root!.count {
                 self.leaf = nil
                 self.offsetOfLeaf = -1
                 return nil
             }
-
-            self.position = offsetOfLeaf + leaf.count
 
             // ascend until we can go right
             while let el = path.last, el.slot == el.node.children.count - 1 {
@@ -337,6 +337,17 @@ extension BTree {
         func peekNextLeaf() -> (Leaf, Int)? {
             var i = self
             return i.nextLeaf()
+        }
+
+        mutating func floorLeaf() -> Leaf? {
+            assert(root != nil)
+
+            guard let leaf else {
+                return nil
+            }
+
+            position = offsetOfLeaf
+            return leaf
         }
 
         func measure(upToLeafContaining pos: Int, using metric: some BTreeMetric<Summary>) -> Int {

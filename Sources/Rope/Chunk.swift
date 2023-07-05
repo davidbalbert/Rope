@@ -50,9 +50,38 @@ struct Chunk: BTreeLeaf {
         return s.unicodeScalars._index(roundingDown: i)
     }
 
+    static func calculateBreaks(in string: String, using breaker: inout Rope.GraphemeBreaker) -> (prefixCount: Int, suffixCount: Int) {
+        var s = string[...]
+
+        guard let r = breaker.firstBreak(in: s) else {
+            // uncommon, no character boundaries
+            let c = s.utf8.count
+            return (c, c)
+        }
+
+        let first = r.lowerBound
+        s = s[r.upperBound...]
+
+        var last = r.lowerBound
+        while let r = breaker.firstBreak(in: s) {
+            last = r.lowerBound
+            s = s[r.upperBound...]
+        }
+
+        let prefixCount = string.utf8.distance(from: string.startIndex, to: first)
+        let suffixCount = string.utf8.distance(from: last, to: string.endIndex)
+
+        return (prefixCount, suffixCount)
+    }
+
     var string: String
     var prefixCount: Int
     var suffixCount: Int
+
+    // the a breaker ready to consume the first
+    // scalar in the Chunk. Used for prefix/suffix
+    // calculation in push(possiblySplitting:)
+    var breaker: Rope.GraphemeBreaker
 
     var count: Int {
         string.utf8.count
@@ -75,49 +104,43 @@ struct Chunk: BTreeLeaf {
     }
 
     init() {
-        self.init("", prefixCount: 0, suffixCount: 0)
+        self.string = ""
+        self.prefixCount = 0
+        self.suffixCount = 0
+        self.breaker = Rope.GraphemeBreaker()
     }
 
-    init(_ elements: some Sequence<Character>, prefixCount: Int, suffixCount: Int) {
+    init(_ elements: some Sequence<Character>, breaker b: inout Rope.GraphemeBreaker) {
         var s = String(elements)
         s.makeContiguousUTF8()
         assert(s.utf8.count <= Chunk.maxSize)
+
+        // save the breaker at the start of the chunk
+        self.breaker = b
+
         self.string = s
-        self.prefixCount = prefixCount
-        self.suffixCount = suffixCount
+        (self.prefixCount, self.suffixCount) = Chunk.calculateBreaks(in: s, using: &b)
     }
 
     // Can we assume that Chunk's prefix count is correct, and start from there?
     // I think not. We might need to pass in a breaker, which is a problem.
+
+    // TODO: This name is not quite right. Maybe just pushMaybeSplit(_ other: Chunk)
     mutating func push(possiblySplitting other: Chunk) -> Chunk? {
-        let nprev = string.utf8.count
         string += other.string
+        var b = breaker
 
         if string.utf8.count <= Chunk.maxSize {
-            // TODO: prefix count should stay the same. Start from there and update suffixCount.
-
+            (prefixCount, suffixCount) = Chunk.calculateBreaks(in: string, using: &b)
             return nil
         } else {
             let i = Chunk.boundaryForMerge(string[...])
 
-            let n = string.utf8.distance(from: string.startIndex, to: i)
-
-            // the problem here is that if prefixCount == suffixCount == nprev,
-            // we need to search back to a potentially arbitrary prior chunk
-            // in order to build up our GraphemeBreaker
-
-            // TODO!
-            let newPrefixCount = min(prefixCount, n)
-            let newSuffixCount = min(suffixCount, n)
-
-            // prefix count could in theory end up shorter
-            // suffixCount starts correct.
-
             let rest = String(string.unicodeScalars[i...])
             string = String(string.unicodeScalars[..<i])
 
-            // TODO: prefixCount, suffixCount
-            return Chunk(rest, prefixCount: 0, suffixCount: 0)
+            (prefixCount, suffixCount) = Chunk.calculateBreaks(in: string, using: &b)
+            return Chunk(rest, breaker: &b)
         }
     }
 
@@ -156,7 +179,7 @@ struct Chunk: BTreeLeaf {
         }
 
         prefixCount = string.utf8.distance(from: string.startIndex, to: first)
-        suffixCount = string.utf8.distance(from: last, to: string.endIndex)
+        suffixCount = string.utf8.distance(from: string.unicodeScalars.index(after: last), to: string.endIndex)
 
         // we're done if we stopped iterating before processing the whole chunk
         return i < string.endIndex
@@ -209,8 +232,9 @@ struct Chunk: BTreeLeaf {
             fatalError("invalid unicode scalar offsets")
         }
 
-        // TODO: add prefixCount and suffixCount
-        return Chunk(string[start..<end], prefixCount: 0, suffixCount: 0)
+        var b = breaker
+        b.consume(string[string.startIndex..<start])
+        return Chunk(string[start..<end], breaker: &b)
     }
 
     func countChars() -> Int {
