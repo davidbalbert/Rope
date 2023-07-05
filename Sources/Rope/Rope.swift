@@ -160,7 +160,7 @@ extension Rope: Collection {
 
         var sliced = Rope(self, slicedBy: Range(start..<end))
 
-        var old = GraphemeBreaker(in: self, upTo: start)
+        var old = GraphemeBreaker(for: self, upTo: start)
         var new = GraphemeBreaker()
         sliced.resyncBreaks(old: &old, new: &new)
 
@@ -193,10 +193,10 @@ extension Rope: RangeReplaceableCollection {
 
         let subrange = index(roundingDown: subrange.lowerBound)..<index(roundingDown: subrange.upperBound)
 
-        var new = GraphemeBreaker(in: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
+        var new = GraphemeBreaker(for: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
         // TODO: can we use unicodeScalars[subrange.upperBound] for withKnownNextScalar? I think we probably can, but we have
         // to make sure that subrange.upperBound != endIndex.
-        var old = GraphemeBreaker(in: self, upTo: subrange.upperBound)
+        var old = GraphemeBreaker(for: self, upTo: subrange.upperBound)
 
         var b = Builder()
         b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
@@ -212,7 +212,7 @@ extension Rope: RangeReplaceableCollection {
     // The deafult implementation calls append(_:) in a loop. This should be faster.
     mutating func append<S>(contentsOf newElements: S) where S : Sequence, S.Element == Element {
         var b = Builder()
-        var br = GraphemeBreaker(in: self, upTo: endIndex)
+        var br = GraphemeBreaker(for: self, upTo: endIndex)
 
         b.push(&root)
         b.push(string: newElements, breaker: &br)
@@ -250,7 +250,7 @@ extension Rope {
         }
 
         // assumes upperBound is valid in rope
-        init(in rope: Rope, upTo upperBound: Rope.Index, withKnownNextScalar next: Unicode.Scalar? = nil) {
+        init(for rope: Rope, upTo upperBound: Rope.Index, withKnownNextScalar next: Unicode.Scalar? = nil) {
             assert(upperBound.isBoundary(in: .unicodeScalars))
 
             if rope.isEmpty || upperBound.position == 0 {
