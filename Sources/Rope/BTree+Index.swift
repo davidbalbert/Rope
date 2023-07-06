@@ -127,7 +127,7 @@ extension BTree {
             assert(root != nil)
 
             // invalid indexes can't be moved
-            guard let leaf else {
+            if leaf == nil {
                 return nil
             }
 
@@ -137,11 +137,13 @@ extension BTree {
                 return nil
             }
 
-            if let offset = prev(withinLeafUsing: metric) {
-                return offset
+            if offsetInLeaf > 0 {
+                if let offset = prev(withinLeafUsing: metric) {
+                    return offset
+                }
             }
 
-            if prevLeaf() == nil {
+            guard let (leaf, _) = prevLeaf() else {
                 // if we started on the first leaf, and we didn't
                 // find a boundary, we're done.
                 return nil
