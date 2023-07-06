@@ -60,7 +60,7 @@ extension BTree {
             var offset = 0
             while !node.isLeaf {
                 var slot = 0
-                for child in node.children {
+                for child in node.children.dropLast() {
                     if offset + child.count > position {
                         break
                     }
