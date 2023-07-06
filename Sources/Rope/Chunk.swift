@@ -112,6 +112,7 @@ struct Chunk: BTreeLeaf {
 
     init(_ elements: some Sequence<Character>, breaker b: inout Rope.GraphemeBreaker) {
         var s = String(elements)
+        // TODO: instead of makeContiguousUTF8, assert(s.isContiguousUTF8)
         s.makeContiguousUTF8()
         assert(s.utf8.count <= Chunk.maxSize)
 
@@ -121,9 +122,6 @@ struct Chunk: BTreeLeaf {
         self.string = s
         (self.prefixCount, self.suffixCount) = Chunk.calculateBreaks(in: s, using: &b)
     }
-
-    // Can we assume that Chunk's prefix count is correct, and start from there?
-    // I think not. We might need to pass in a breaker, which is a problem.
 
     // TODO: This name is not quite right. Maybe just pushMaybeSplit(_ other: Chunk)
     mutating func push(possiblySplitting other: Chunk) -> Chunk? {

@@ -239,7 +239,7 @@ extension Rope {
 
 extension Rope {
     struct GraphemeBreaker: Equatable {
-        #if swift(<5.9)
+        #if swift(>=5.9)
         static func == (lhs: BTree<Summary>.GraphemeBreaker, rhs: BTree<Summary>.GraphemeBreaker) -> Bool {
             false
         }
@@ -247,12 +247,12 @@ extension Rope {
 
         var recognizer: Unicode._CharacterRecognizer
 
-        init() {
-            recognizer = Unicode._CharacterRecognizer()
-        }
-
-        init(_ recognizer: Unicode._CharacterRecognizer) {
+        init(_ recognizer: Unicode._CharacterRecognizer = Unicode._CharacterRecognizer(), consuming s: Substring? = nil) {
             self.recognizer = recognizer
+
+            if let s {
+                consume(s)
+            }
         }
 
         // assumes upperBound is valid in rope
@@ -274,59 +274,18 @@ extension Rope {
                 }
             }
 
-            if upperBound.isBoundary(in: .characters) {
-                self.init()
+            let (chunk, offset) = upperBound.read()!
+            let i = chunk.string.utf8Index(at: offset)
+
+            if i <= chunk.firstBreak {
+                self.init(chunk.breaker.recognizer, consuming: chunk.string[..<i])
                 return
             }
 
-            let (chunk, offset) = upperBound.read()!
-            let end = chunk.string.utf8Index(at: offset)
-            var r = chunk.breaker.recognizer
+            let prev = chunk.characters.index(before: i)
 
-            var i = chunk.string.startIndex
-            while i < end {
-                _ = r.hasBreak(before: chunk.string.unicodeScalars[i])
-                chunk.string.unicodeScalars.formIndex(after: &i)
-            }
-
-            self.init(r)
+            self.init(consuming: chunk.string[prev..<i])
         }
-
-        // assumes upperBound is valid in rope
-//        init(for rope: Rope, upTo upperBound: Rope.Index, withKnownNextScalar next: Unicode.Scalar? = nil) {
-//            assert(upperBound.isBoundary(in: .unicodeScalars))
-//
-//            if rope.isEmpty || upperBound.position == 0 {
-//                self.init()
-//                return
-//            }
-//
-//            if let next {
-//                let i = rope.unicodeScalars.index(before: upperBound)
-//                let prev = rope.unicodeScalars[i]
-//
-//                if Unicode._CharacterRecognizer.quickBreak(between: prev, and: next) ?? false {
-//                    self.init()
-//                    return
-//                }
-//            }
-//
-//            var i = rope.index(roundingDown: upperBound, using: .characters)
-//
-//            if i == upperBound {
-//                self.init()
-//                return
-//            }
-//
-//            var r = Unicode._CharacterRecognizer()
-//            while i < upperBound {
-//                let b = r.hasBreak(before: rope.unicodeScalars[i])
-//                assert(!b)
-//                rope.unicodeScalars.formIndex(after: &i)
-//            }
-//
-//            self.init(r)
-//        }
 
         mutating func hasBreak(before next: Unicode.Scalar) -> Bool {
             recognizer.hasBreak(before: next)
