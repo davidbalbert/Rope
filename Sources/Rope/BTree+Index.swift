@@ -126,16 +126,11 @@ extension BTree {
         mutating func prev(using metric: some BTreeMetric<Summary>) -> Int? {
             assert(root != nil)
 
-            // invalid indexes can't be moved
-            if leaf == nil {
+            if position == 0 || leaf == nil {
+                invalidate()
                 return nil
             }
 
-            if position == 0 {
-                self.leaf = nil
-                self.offsetOfLeaf = -1
-                return nil
-            }
 
             if offsetInLeaf > 0 {
                 if let offset = prev(withinLeafUsing: metric) {
