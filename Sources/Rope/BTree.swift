@@ -107,7 +107,7 @@ extension BTree where Summary: BTreeDefaultMetric {
         i.validate(for: root)
 
         var i = i
-        i.floorLeaf()! // a valid index will always have a leaf
+        _ = i.floorLeaf()! // a valid index will always have a leaf
         return i
     }
 }
