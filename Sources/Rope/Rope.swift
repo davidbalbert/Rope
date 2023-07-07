@@ -11,6 +11,8 @@ import Foundation
 // internal nodes are order 8: 4...8 children (see Tree.swift)
 // leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024 (see Chunk.swift)
 
+typealias Rope = BTree<RopeSummary>
+
 struct RopeSummary: BTreeSummary {
     var utf16: Int
     var scalars: Int
@@ -45,24 +47,6 @@ struct RopeSummary: BTreeSummary {
 
 extension RopeSummary: BTreeDefaultMetric {
     static var defaultMetric: Rope.UTF8Metric { Rope.UTF8Metric() }
-}
-
-typealias Rope = BTree<RopeSummary>
-
-extension Rope: Sequence {
-    struct Iterator: IteratorProtocol {
-        var index: Index
-
-        mutating func next() -> Character? {
-            let c = index.readChar()
-            index.next(using: .characters)
-            return c
-        }
-    }
-
-    func makeIterator() -> Iterator {
-        Iterator(index: Index(startOf: root))
-    }
 }
 
 extension Rope.Index {
@@ -128,6 +112,22 @@ extension Rope.Index {
 
         assert(s.count == 1)
         return s[s.startIndex]
+    }
+}
+
+extension Rope: Sequence {
+    struct Iterator: IteratorProtocol {
+        var index: Index
+
+        mutating func next() -> Character? {
+            let c = index.readChar()
+            index.next(using: .characters)
+            return c
+        }
+    }
+
+    func makeIterator() -> Iterator {
+        Iterator(index: Index(startOf: root))
     }
 }
 
@@ -219,9 +219,8 @@ extension Rope: RangeReplaceableCollection {
 }
 
 extension Rope {
-    subscript(offset: Int) -> Character {
-        let i = Index(offsetBy: offset, in: root)
-        return self[i]
+    func index(at offset: Int) -> Index {
+        Index(offsetBy: offset, in: root)
     }
 
     func index(roundingDown i: Index) -> Index {
