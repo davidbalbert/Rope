@@ -115,6 +115,12 @@ extension Rope.Index {
     }
 }
 
+extension Rope.Index: CustomStringConvertible {
+    var description: String {
+        "\(position)[utf8]"
+    }
+}
+
 extension Rope: Sequence {
     struct Iterator: IteratorProtocol {
         var index: Index
@@ -236,7 +242,7 @@ extension Rope {
 
 extension Rope {
     struct GraphemeBreaker: Equatable {
-        #if swift(>=5.9)
+        #if swift(<5.9)
         static func == (lhs: BTree<Summary>.GraphemeBreaker, rhs: BTree<Summary>.GraphemeBreaker) -> Bool {
             false
         }
@@ -376,11 +382,8 @@ extension Rope {
         }
         
         func next(_ offset: Int, in chunk: Chunk) -> Int? {
-            if offset == chunk.count {
-                return nil
-            } else {
-                return offset + 1
-            }
+            assert(offset < chunk.count)
+            return offset + 1
         }
         
         var canFragment: Bool {
@@ -453,9 +456,7 @@ extension Rope {
         func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
             let startIndex = chunk.string.startIndex
             let i = chunk.string.utf8Index(at: baseUnits)
-            
-            assert(chunk.isValidUnicodeScalarIndex(i))
-            
+
             return chunk.string.unicodeScalars.distance(from: startIndex, to: i)
         }
         
@@ -469,19 +470,17 @@ extension Rope {
             
             let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
-            
+
             let target = chunk.string.unicodeScalars.index(before: current)
             return chunk.string.utf8.distance(from: startIndex, to: target)
         }
         
         func next(_ offset: Int, in chunk: Chunk) -> Int? {
-            if offset == chunk.count {
-                return nil
-            }
-            
+            assert(offset < chunk.count)
+
             let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
-            
+
             let target = chunk.string.unicodeScalars.index(after: current)
             return chunk.string.utf8.distance(from: startIndex, to: target)
         }
@@ -521,8 +520,6 @@ extension Rope {
             let startIndex = chunk.characters.startIndex
             let i = chunk.string.utf8Index(at: baseUnits)
             
-            assert(chunk.isValidCharacterIndex(i))
-            
             return chunk.characters.distance(from: startIndex, to: i)
         }
         
@@ -543,24 +540,30 @@ extension Rope {
         
         func prev(_ offset: Int, in chunk: Chunk) -> Int? {
             assert(offset > 0)
-            
+
+            let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
+
             if current <= chunk.firstBreak {
                 return nil
             }
             
-            let prev = chunk.string.index(before: current)
-            return offset - chunk.string.utf8.distance(from: prev, to: current)
+            let target = chunk.string.index(before: current)
+            return chunk.string.utf8.distance(from: startIndex, to: target)
         }
         
         func next(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset < chunk.count)
+
+            let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
+
             if current >= chunk.lastBreak {
                 return nil
             }
             
-            let next = chunk.string.index(after: current)
-            return offset + chunk.string.utf8.distance(from: current, to: next)
+            let target = chunk.string.index(after: current)
+            return chunk.string.utf8.distance(from: startIndex, to: target)
         }
         
         var canFragment: Bool {
@@ -590,7 +593,7 @@ extension Rope {
             var count = 0
             chunk.string.withExistingUTF8 { buf in
                 while count < measuredUnits {
-                    offset = buf[offset...].firstIndex(of: nl)!
+                    offset = buf[offset...].firstIndex(of: nl)! + 1
                     count += 1
                 }
             }
@@ -622,6 +625,8 @@ extension Rope {
         }
         
         func next(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset < chunk.count)
+
             let nl = UInt8(ascii: "\n")
             return chunk.string.withExistingUTF8 { buf in
                 buf[offset...].firstIndex(of: nl).map { $0 + 1 }

@@ -58,7 +58,7 @@ extension BTree {
             while !node.isLeaf {
                 var slot = 0
                 for child in node.children.dropLast() {
-                    if offset + child.count > position {
+                    if position < offset + child.count {
                         break
                     }
                     offset += child.count
@@ -409,7 +409,7 @@ extension BTree {
                 var slot = 0
                 for child in node.children.dropLast() {
                     let childMeasure = child.measure(using: metric)
-                    if childMeasure >= measure {
+                    if measure <= childMeasure {
                         break
                     }
                     offset += child.count

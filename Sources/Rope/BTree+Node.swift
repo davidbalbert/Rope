@@ -219,15 +219,17 @@ extension BTree {
             var m2 = 0
             var node = self
             while !node.isLeaf {
+                let last = node
                 for child in node.children {
                     let childM1 = child.measure(using: from)
-                    if m1 < childM1 {
+                    if m1 <= childM1 {
                         node = child
                         break
                     }
                     m1 -= childM1
                     m2 += child.measure(using: to)
                 }
+                assert(node !== last)
             }
 
             let base = from.convertToBaseUnits(m1, in: node.leaf)
