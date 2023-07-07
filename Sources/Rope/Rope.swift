@@ -193,9 +193,7 @@ extension Rope: RangeReplaceableCollection {
 
         let subrange = index(roundingDown: subrange.lowerBound)..<index(roundingDown: subrange.upperBound)
 
-        // TODO: can we use unicodeScalars[subrange.upperBound] for withKnownNextScalar? I think we probably can, but we have
-        // to make sure that subrange.upperBound != endIndex.
-        var old = GraphemeBreaker(for: self, upTo: subrange.upperBound, withKnownNextScalar: subrange.upperBound == endIndex ? nil : unicodeScalars[subrange.upperBound])
+        var old = GraphemeBreaker(for: self, upTo: subrange.upperBound, withKnownNextScalar: subrange.upperBound.position == root.count ? nil : unicodeScalars[subrange.upperBound])
         var new = GraphemeBreaker(for: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
 
         var b = Builder()
@@ -364,7 +362,7 @@ struct UTF8Metric: BTreeMetric {
         measuredUnits
     }
     
-    func convertToMeasuredUnits(_ baseUnits: Int, in leaf: Chunk) -> Int {
+    func convertFromBaseUnits(_ baseUnits: Int, in leaf: Chunk) -> Int {
         baseUnits
     }
     
@@ -407,7 +405,7 @@ struct UTF16Metric: BTreeMetric {
         fatalError("not implemented")
     }
 
-    func convertToMeasuredUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+    func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
         fatalError("not implemented")
     }
 
@@ -448,7 +446,7 @@ struct UnicodeScalarMetric: BTreeMetric {
         return chunk.string.utf8.distance(from: startIndex, to: i)
     }
     
-    func convertToMeasuredUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+    func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
         let startIndex = chunk.string.startIndex
         let i = chunk.string.utf8Index(at: baseUnits)
 
@@ -513,7 +511,7 @@ struct CharacterMetric: BTreeMetric {
         
     }
     
-    func convertToMeasuredUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+    func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
         let startIndex = chunk.characters.startIndex
         let i = chunk.string.utf8Index(at: baseUnits)
 
@@ -592,7 +590,7 @@ struct NewlinesMetric: BTreeMetric {
         return offset
     }
     
-    func convertToMeasuredUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+    func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
         return chunk.string.withExistingUTF8 { buf in
             Chunk.countNewlines(in: buf[..<baseUnits])
         }

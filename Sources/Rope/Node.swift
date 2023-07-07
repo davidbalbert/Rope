@@ -72,7 +72,7 @@ extension BTree {
             self.height = height
             self.count = count
             self._children = children
-            self._leaf = Leaf()
+            self._leaf = Leaf.zero
             self.summary = summary
         }
 
@@ -90,7 +90,7 @@ extension BTree {
         }
 
         convenience init() {
-            self.init(Leaf())
+            self.init(Leaf.zero)
         }
 
         convenience init<C>(_ children: C) where C: Sequence, C.Element == Node {
@@ -188,7 +188,7 @@ extension BTree {
 
             mutationCount &+= 1
 
-            let newLeaf = leaf.push(possiblySplitting: other.leaf)
+            let newLeaf = leaf.pushMaybeSplitting(other: other.leaf)
             count = leaf.count
             summary = Summary(summarizing: leaf)
 
@@ -231,7 +231,7 @@ extension BTree {
             }
 
             let base = from.convertToBaseUnits(m1, in: node.leaf)
-            return m2 + to.convertToMeasuredUnits(base, in: node.leaf)
+            return m2 + to.convertFromBaseUnits(base, in: node.leaf)
         }
 
         func convert<M>(_ m1: Int, from: M, to: M) -> Int where M: BTreeMetric<Summary> {

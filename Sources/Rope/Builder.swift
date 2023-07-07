@@ -43,7 +43,7 @@ extension BTree {
                             stack[stack.count - 1][stack[stack.count - 1].count - 1] = (lastNode, true)
                         }
 
-                        let newLeaf = lastNode.leaf.push(possiblySplitting: n.leaf)
+                        let newLeaf = lastNode.leaf.pushMaybeSplitting(other: n.leaf)
 
                         lastNode.mutationCount &+= 1
                         lastNode.count = lastNode.leaf.count

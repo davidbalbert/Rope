@@ -19,8 +19,7 @@ protocol BTreeMetric<Summary> {
 
     func measure(summary: Summary, count: Int) -> Int
     func convertToBaseUnits(_ measuredUnits: Int, in leaf: Summary.Leaf) -> Int
-    // TODO: Maybe rename to convertFromBaseUnits?
-    func convertToMeasuredUnits(_ baseUnits: Int, in leaf: Summary.Leaf) -> Int
+    func convertFromBaseUnits(_ baseUnits: Int, in leaf: Summary.Leaf) -> Int
     func isBoundary(_ offset: Int, in leaf: Summary.Leaf) -> Bool
 
     // Never called with offset == 0

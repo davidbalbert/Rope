@@ -50,10 +50,7 @@ extension BTree {
 
             descend()
         }
-        // TODO: we could write this in terms of descend(toLeafContaining:asMeasuredBy:) using the
-        // base metric. Remember that we'll need to save our position before calling the above
-        // function, and then reset it after calling the function. Otherwise, we'll always end
-        // up at the beginning of the leaf.
+
         mutating func descend() {
             path = []
             var node = root! // assume we have a root
