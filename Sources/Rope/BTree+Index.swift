@@ -89,20 +89,40 @@ extension BTree {
         }
 
         func isBoundary(in metric: some BTreeMetric<Summary>) -> Bool {
+            assert(root != nil)
+
             guard let leaf else {
                 return false
             }
 
-            if position == offsetOfLeaf && !metric.canFragment {
+            if offsetInLeaf == 0 && !metric.canFragment {
                 return true
             }
 
-            if position == 0 || offsetInLeaf > 0 {
-                return metric.isBoundary(offsetInLeaf, in: leaf)
+            switch metric.type {
+            case .leading:
+                if position == root!.count {
+                    return true
+                } else if offsetInLeaf == leaf.count {
+                    // We have to look at the next leaf to see if we have a boundary.
+                    // This is not tested, and I don't know if it works.
+                    let (next, _) = peekNextLeaf()!
+                    return metric.isBoundary(0, in: next)
+                } else {
+                    return metric.isBoundary(offsetInLeaf, in: leaf)
+                }
+            case .trailing:
+                if position == 0 {
+                    return true
+                } else if offsetInLeaf == 0 {
+                    // We have to look to the previous leaf to
+                    // see if we have a boundary.
+                    let (prev, _) = peekPrevLeaf()!
+                    return metric.isBoundary(prev.count, in: prev)
+                } else {
+                    return metric.isBoundary(offsetInLeaf, in: leaf)
+                }
             }
-
-            let (prev, _) = peekPrevLeaf()!
-            return metric.isBoundary(prev.count, in: prev)
         }
 
         mutating func set(_ position: Int) {
@@ -131,33 +151,29 @@ extension BTree {
                 return nil
             }
 
-
-            if offsetInLeaf > 0 {
-                if let offset = prev(withinLeafUsing: metric) {
-                    return offset
-                }
-            }
-
-            guard let (leaf, _) = prevLeaf() else {
-                // if we started on the first leaf, and we didn't
-                // find a boundary, we're done.
-                return nil
-            }
-
-            // prevLeaf() puts us at the beginning of the previous leaf. We need
-            // to move one past the end.
-            //
-            // WARNING: after this line, we're in an invalid state until we call
-            // prev(withinLeafUsing:).
-            position = offsetOfLeaf + leaf.count
-
-            // one more shot
+            // try to find a boundary within this leaf
             if let offset = prev(withinLeafUsing: metric) {
                 return offset
             }
 
-            // The leaf before the starting leaf had no boundaries in the metric.
-            // Just start at the top and descend instead.
+            // If we didn't find a boundary, go to the previous leaf and
+            // try again.
+            guard let (leaf, _) = prevLeaf() else {
+                // we were on the first leaf, so we're done.
+                return nil
+            }
+
+            // one more shot
+            position = offsetOfLeaf + leaf.count
+            if let offset = prev(withinLeafUsing: metric) {
+                return offset
+            }
+
+            // We've searched at least one full leaf backwards and
+            // found nothing. Just start at the top and descend instead.
+            //
+            // TODO: it's possible this only works with trailing boundaries, but
+            // I'm not sure.
             let measure = measure(upToLeafContaining: offsetOfLeaf, using: metric)
             descend(toLeafContaining: measure, asMeasuredBy: metric)
 
@@ -166,10 +182,8 @@ extension BTree {
                 return offset
             }
 
-            // we're at the beginning
-            assert(position == 0)
-            self.leaf = nil
-            self.offsetOfLeaf = -1
+            // we didn't find anything
+            invalidate()
             return nil
         }
 
@@ -177,7 +191,8 @@ extension BTree {
         mutating func next(using metric: some BTreeMetric<Summary>) -> Int? {
             assert(root != nil)
 
-            if position == root!.count {
+            if position == root!.count || leaf == nil {
+                invalidate()
                 return nil
             }
 
@@ -185,6 +200,7 @@ extension BTree {
                 return offset
             }
 
+            // There was no boundary in the leaf we started on. Move to the next one.
             if nextLeaf() == nil {
                 // the leaf we started on was the last leaf, and we didn't
                 // find a boundary, so now we're at the end.
@@ -196,10 +212,11 @@ extension BTree {
                 return offset
             }
 
-            // If we get here, the leaf after the one we started has no boundaries
-            // in the metric. Just start at the top and descend instead.
-
-            // measure the our current position
+            // We've searched at least one full leaf forwards and
+            // found nothing. Just start at the top and descend instead.
+            //
+            // TODO: it's possible this only works with trailing boundaries, but
+            // I'm not sure.
             let measure = measure(upToLeafContaining: offsetOfLeaf, using: metric)
             descend(toLeafContaining: measure+1, asMeasuredBy: metric)
 
@@ -207,63 +224,76 @@ extension BTree {
                 return offset
             }
 
-            // we're at the end
-            assert(position == root!.count)
-            leaf = nil
-            offsetOfLeaf = -1
+            // we didn't find anything
+            invalidate()
             return nil
         }
 
         mutating func prev(withinLeafUsing metric: some BTreeMetric<Summary>) -> Int? {
-            assert(root != nil)
+            assert(root != nil && leaf != nil)
 
-            if position == 0 {
+            if offsetInLeaf == 0 {
                 return nil
             }
 
-            guard let leaf else {
-                return nil
+            let newOffsetInLeaf = metric.prev(offsetInLeaf, in: leaf!)
+
+            if let newOffsetInLeaf {
+                position = offsetOfLeaf + newOffsetInLeaf
+                return position
             }
 
-            guard let newOffsetInLeaf = metric.prev(offsetInLeaf, in: leaf) else {
-                return nil
+            if offsetOfLeaf == 0 && metric.type == .trailing {
+                // Didn't find a boundary, but trailing metrics have
+                // a boundary at startIndex.
+                position = 0
+                return position
             }
 
-            position = offsetOfLeaf + newOffsetInLeaf
-
-            return position
+            // We didn't find a boundary.
+            return nil
         }
 
         mutating func next(withinLeafUsing metric: some BTreeMetric<Summary>) -> Int? {
-            assert(root != nil)
-            let leaf = leaf!
+            assert(root != nil && leaf != nil)
 
-            guard let newOffsetInLeaf = metric.next(offsetInLeaf, in: leaf) else {
+            let isLastLeaf = offsetOfLeaf + leaf!.count == root!.count
+
+            let newOffsetInLeaf = metric.next(offsetInLeaf, in: leaf!)
+
+            if newOffsetInLeaf == nil && isLastLeaf && metric.type == .leading {
+                // Didn't find a boundary, but leading metrics have a
+                // boundary at endIndex.
+                position = offsetOfLeaf + leaf!.count
+                return position
+            }
+
+            guard let newOffsetInLeaf else {
                 return nil
             }
 
-            // TODO: is it possible that this is only true for leading boundaries? If so
-            // do we need it? Right now, we only have trailing boundaries.
-            if newOffsetInLeaf == leaf.count && offsetOfLeaf + newOffsetInLeaf != root!.count {
+            if newOffsetInLeaf == leaf!.count && !isLastLeaf {
+                // sets position = offsetOfLeaf + leaf!.count
                 nextLeaf()
             } else {
                 position = offsetOfLeaf + newOffsetInLeaf
             }
 
-            if position == root!.count {
-                return nil
-            }
-
             return position
         }
 
+        // Moves to the start of the previous leaf, regardless of offsetInLeaf.
         @discardableResult
         mutating func prevLeaf() -> (Leaf, Int)? {
             assert(root != nil)
 
-            if position == 0 {
-                leaf = nil
-                offsetOfLeaf = -1
+            if leaf == nil {
+                return nil
+            }
+
+            // if we're in the first leaf, there is no previous leaf.
+            if offsetOfLeaf == 0 {
+                invalidate()
                 return nil
             }
 
@@ -283,9 +313,11 @@ extension BTree {
                 node = node.children[node.children.count - 1]
             }
 
-            self.offsetOfLeaf -= node.count
+            let leaf = node.leaf
+            self.leaf = leaf
+            self.offsetOfLeaf -= leaf.count
             self.position = offsetOfLeaf
-            self.leaf = node.leaf
+
             return read()
         }
 
@@ -299,9 +331,8 @@ extension BTree {
 
             self.position = offsetOfLeaf + leaf.count
 
-            if offsetOfLeaf + leaf.count == root!.count {
-                self.leaf = nil
-                self.offsetOfLeaf = -1
+            if position == root!.count {
+                invalidate()
                 return nil
             }
 
@@ -321,8 +352,8 @@ extension BTree {
                 node = node.children[0]
             }
 
-            self.offsetOfLeaf = position
             self.leaf = node.leaf
+            self.offsetOfLeaf = position
             return read()
         }
         
@@ -354,16 +385,15 @@ extension BTree {
 
             var node = root!
             var measure = 0
-            var offset = pos
+            var pos = pos
 
             while !node.isLeaf {
                 for child in node.children {
-                    // TODO: this might be wrong for endIndex. Not sure what to do yet.
-                    if offset < child.count {
+                    if pos < child.count {
                         node = child
                         break
                     }
-                    offset -= child.count
+                    pos -= child.count
                     measure += child.measure(using: metric)
                 }
             }
@@ -417,6 +447,11 @@ extension BTree {
             }
 
             return (leaf, offsetInLeaf)
+        }
+
+        mutating func invalidate() {
+            self.leaf = nil
+            self.offsetOfLeaf = -1
         }
     }
 }

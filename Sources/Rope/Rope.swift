@@ -369,15 +369,12 @@ struct UTF8Metric: BTreeMetric {
     }
     
     func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-        offset >= 0 && offset < chunk.count
+        true
     }
     
     func prev(_ offset: Int, in chunk: Chunk) -> Int? {
-        if offset == 0 {
-            return nil
-        } else {
-            return offset - 1
-        }
+        assert(offset > 0)
+        return offset - 1
     }
     
     func next(_ offset: Int, in chunk: Chunk) -> Int? {
@@ -390,6 +387,10 @@ struct UTF8Metric: BTreeMetric {
 
     var canFragment: Bool {
         false
+    }
+
+    var type: Rope.MetricType {
+        .trailing
     }
 }
 
@@ -424,7 +425,11 @@ struct UTF16Metric: BTreeMetric {
 
     var canFragment: Bool {
         false
-    }    
+    }
+
+    var type: Rope.MetricType {
+        .trailing
+    }
 }
 
 extension BTreeMetric<RopeSummary> where Self == UTF16Metric {
@@ -458,9 +463,7 @@ struct UnicodeScalarMetric: BTreeMetric {
     }
     
     func prev(_ offset: Int, in chunk: Chunk) -> Int? {
-        if offset == 0 {
-            return nil
-        }
+        assert(offset > 0)
 
         let startIndex = chunk.string.startIndex
         let current = chunk.string.utf8Index(at: offset)
@@ -483,6 +486,10 @@ struct UnicodeScalarMetric: BTreeMetric {
 
     var canFragment: Bool {
         false
+    }
+
+    var type: Rope.MetricType {
+        .trailing
     }
 }
 
@@ -531,6 +538,8 @@ struct CharacterMetric: BTreeMetric {
     }
     
     func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+        assert(offset > 0)
+
         let current = chunk.string.utf8Index(at: offset)
         if current <= chunk.firstBreak {
             return nil
@@ -552,6 +561,10 @@ struct CharacterMetric: BTreeMetric {
 
     var canFragment: Bool {
         true
+    }
+
+    var type: Rope.MetricType {
+        .trailing
     }
 }
 
@@ -586,12 +599,10 @@ struct NewlinesMetric: BTreeMetric {
     }
     
     func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-        if offset == 0 {
-            return false
-        } else {
-            return chunk.string.withExistingUTF8 { buf in
-                buf[offset - 1] == UInt8(ascii: "\n")
-            }
+        assert(offset > 0)
+
+        return chunk.string.withExistingUTF8 { buf in
+            buf[offset - 1] == UInt8(ascii: "\n")
         }
     }
     
@@ -613,6 +624,10 @@ struct NewlinesMetric: BTreeMetric {
 
     var canFragment: Bool {
         true
+    }
+
+    var type: Rope.MetricType {
+        .trailing
     }
 }
 
