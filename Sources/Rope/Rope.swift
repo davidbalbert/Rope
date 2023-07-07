@@ -240,7 +240,14 @@ extension Rope {
     }
 }
 
-extension Rope {
+// This should really be in an extension of Rope, not BTree, but if I do
+// that, lldb gives the following error when printing GraphemeBreaker or
+// other types that embed it:
+//
+//   (lldb) expr Rope.GraphemeBreaker()
+//   error: Couldn't materialize: can't get size of type "Rope.BTree<Rope.RopeSummary>< where τ_0_0 == Rope.RopeSummary>.GraphemeBreaker"
+//   error: errored out in DoExecute, couldn't PrepareToExecuteJITExpression
+extension BTree {
     struct GraphemeBreaker: Equatable {
         #if swift(<5.9)
         static func == (lhs: BTree<Summary>.GraphemeBreaker, rhs: BTree<Summary>.GraphemeBreaker) -> Bool {
