@@ -50,6 +50,8 @@ struct BTree<Summary> where Summary: BTreeSummary {
 }
 
 extension BTree where Summary: BTreeDefaultMetric {
+    // TODO: right now, index(before:using:) and index(after:using:) can return invalid
+    // indices. Perhaps we want them to return nil indices instead.
     func index<M>(before i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
         i.validate(for: root)
 
@@ -66,11 +68,22 @@ extension BTree where Summary: BTreeDefaultMetric {
         return i
     }
 
+    // TODO: index(_:offsetBy:using:) and index(_:offsetBy:limitedBy:using:) both panic if
+    // m+distance > root.measure(using: metric). There are certain situations where we're probably
+    // going to want to return the end of the rope if we're asking for root.measure(using: metric) + 1.
+    //
+    // Specifically, if we're using the .newlines metric, the number of lines we have is one more than
+    // the number of newline characters. For this reason, Xi allows you to call offset_of_line with
+    // root.measure(using: .newlines) + 1. It's possible we can handle this in the lines view instead
+    // of in this method.
+    //
+    // If we want to handle it here, we could make this function return Index? as well.
     func index<M>(_ i: Index, offsetBy distance: Int, using metric: M) -> Index where M: BTreeMetric<Summary> {
         i.validate(for: root)
 
         var i = i
         let m = root.count(metric, upThrough: i.position)
+        precondition(m+distance >= 0 && m+distance <= root.measure(using: metric), "Index out of bounds")
         let pos = root.offset(of: m + distance, measuredIn: metric)
         i.set(pos)
 
@@ -89,6 +102,7 @@ extension BTree where Summary: BTreeDefaultMetric {
         // This is the body of index(_:offsetBy:in:) skipping the validation
         var i = i
         let m = root.count(metric, upThrough: i.position)
+        precondition(m+distance >= 0 && m+distance <= root.measure(using: metric), "Index out of bounds")
         let pos = root.offset(of: m + distance, measuredIn: metric)
         i.set(pos)
 
