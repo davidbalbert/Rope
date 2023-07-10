@@ -50,7 +50,7 @@ struct BTree<Summary> where Summary: BTreeSummary {
 }
 
 extension BTree where Summary: BTreeDefaultMetric {
-    func index(before i: Index, using metric: some BTreeMetric<Summary>) -> Index {
+    func index<M>(before i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
         i.validate(for: root)
 
         var i = i
@@ -58,7 +58,7 @@ extension BTree where Summary: BTreeDefaultMetric {
         return i
     }
 
-    func index(after i: Index, using metric: some BTreeMetric<Summary>) -> Index {
+    func index<M>(after i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
         i.validate(for: root)
 
         var i = i
@@ -66,7 +66,7 @@ extension BTree where Summary: BTreeDefaultMetric {
         return i
     }
 
-    func index(_ i: Index, offsetBy distance: Int, using metric: some BTreeMetric<Summary>) -> Index {
+    func index<M>(_ i: Index, offsetBy distance: Int, using metric: M) -> Index where M: BTreeMetric<Summary> {
         i.validate(for: root)
 
         var i = i
@@ -77,7 +77,7 @@ extension BTree where Summary: BTreeDefaultMetric {
         return i
     }
 
-    func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index, using metric: some BTreeMetric<Summary>) -> Index? {
+    func index<M>(_ i: Index, offsetBy distance: Int, limitedBy limit: Index, using metric: M) -> Index? where M: BTreeMetric<Summary> {
         i.validate(for: root)
         limit.validate(for: root)
 
@@ -95,7 +95,7 @@ extension BTree where Summary: BTreeDefaultMetric {
         return i
     }
 
-    func index(roundingDown i: Index, using metric: some BTreeMetric<Summary>) -> Index {
+    func index<M>(roundingDown i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
         if i.isBoundary(in: metric) {
             return i
         }

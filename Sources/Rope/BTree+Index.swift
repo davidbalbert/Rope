@@ -85,7 +85,7 @@ extension BTree {
             leaf != nil && root?.count == position
         }
 
-        func isBoundary(in metric: some BTreeMetric<Summary>) -> Bool {
+        func isBoundary<M>(in metric: M) -> Bool where M: BTreeMetric<Summary> {
             assert(root != nil)
 
             guard let leaf else {
@@ -140,7 +140,7 @@ extension BTree {
         }
 
         @discardableResult
-        mutating func prev(using metric: some BTreeMetric<Summary>) -> Int? {
+        mutating func prev<M>(using metric: M) -> Int? where M: BTreeMetric<Summary> {
             assert(root != nil)
 
             if position == 0 || leaf == nil {
@@ -185,7 +185,7 @@ extension BTree {
         }
 
         @discardableResult
-        mutating func next(using metric: some BTreeMetric<Summary>) -> Int? {
+        mutating func next<M>(using metric: M) -> Int? where M: BTreeMetric<Summary> {
             assert(root != nil)
 
             if position == root!.count || leaf == nil {
@@ -226,7 +226,7 @@ extension BTree {
             return nil
         }
 
-        mutating func prev(withinLeafUsing metric: some BTreeMetric<Summary>) -> Int? {
+        mutating func prev<M>(withinLeafUsing metric: M) -> Int? where M: BTreeMetric<Summary> {
             assert(root != nil && leaf != nil)
 
             if offsetInLeaf == 0 {
@@ -251,7 +251,7 @@ extension BTree {
             return nil
         }
 
-        mutating func next(withinLeafUsing metric: some BTreeMetric<Summary>) -> Int? {
+        mutating func next<M>(withinLeafUsing metric: M) -> Int? where M: BTreeMetric<Summary> {
             assert(root != nil && leaf != nil)
 
             let isLastLeaf = offsetOfLeaf + leaf!.count == root!.count
@@ -375,7 +375,7 @@ extension BTree {
             return leaf
         }
 
-        func measure(upToLeafContaining pos: Int, using metric: some BTreeMetric<Summary>) -> Int {
+        func measure<M>(upToLeafContaining pos: Int, using metric: M) -> Int where M: BTreeMetric<Summary> {
             if pos == 0 {
                 return 0
             }
@@ -398,7 +398,7 @@ extension BTree {
             return measure
         }
 
-        mutating func descend(toLeafContaining measure: Int, asMeasuredBy metric: some BTreeMetric<Summary>) {
+        mutating func descend<M>(toLeafContaining measure: Int, asMeasuredBy metric: M) where M: BTreeMetric<Summary> {
             var node = root!
             var offset = 0
             var measure = measure

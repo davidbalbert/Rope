@@ -364,7 +364,13 @@ extension Rope.Builder {
     }
 }
 
-extension Rope {
+// It would be better if these metrics were nested inside Rope instead
+// of BTree, but that causes problems with LLDB – I get errors like
+// "error: cannot find 'metric' in scope" in response to 'p metric'.
+//
+// Ditto for using `some BTreeMetric<Summary>` instead of introducing
+// a generic type and constrainting it to BTreeMetric<Summary>.
+extension BTree {
     // The base metric, which measures UTF-8 code units.
     struct UTF8Metric: BTreeMetric {
         func measure(summary: RopeSummary, count: Int) -> Int {
@@ -407,7 +413,7 @@ extension BTreeMetric<RopeSummary> where Self == Rope.UTF8Metric {
     static var utf8: Rope.UTF8Metric { Rope.UTF8Metric() }
 }
 
-extension Rope {
+extension BTree {
     struct UTF16Metric: BTreeMetric {
         func measure(summary: RopeSummary, count: Int) -> Int {
             summary.utf16
@@ -447,7 +453,7 @@ extension BTreeMetric<RopeSummary> where Self == Rope.UTF16Metric {
     static var utf16: Rope.UTF16Metric { Rope.UTF16Metric() }
 }
 
-extension Rope {
+extension BTree {
     struct UnicodeScalarMetric: BTreeMetric {
         func measure(summary: RopeSummary, count: Int) -> Int {
             summary.scalars
@@ -506,7 +512,7 @@ extension BTreeMetric<RopeSummary> where Self == Rope.UnicodeScalarMetric {
     static var unicodeScalars: Rope.UnicodeScalarMetric { Rope.UnicodeScalarMetric() }
 }
 
-extension Rope {
+extension BTree {
     struct CharacterMetric: BTreeMetric {
         func measure(summary: RopeSummary, count: Int) -> Int {
             summary.chars
@@ -587,7 +593,7 @@ extension BTreeMetric<RopeSummary> where Self == Rope.CharacterMetric {
     static var characters: Rope.CharacterMetric { Rope.CharacterMetric() }
 }
 
-extension Rope {
+extension BTree {
     struct NewlinesMetric: BTreeMetric {
         func measure(summary: RopeSummary, count: Int) -> Int {
             summary.newlines

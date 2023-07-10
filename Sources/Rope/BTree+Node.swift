@@ -205,11 +205,11 @@ extension BTree {
             return Node(cloning: self)
         }
 
-        func measure(using metric: some BTreeMetric<Summary>) -> Int {
+        func measure<M>(using metric: M) -> Int where M: BTreeMetric<Summary> {
             metric.measure(summary: summary, count: count)
         }
 
-        func convert(_ m1: Int, from: some BTreeMetric<Summary>, to: some BTreeMetric<Summary>) -> Int {
+        func convert<M1, M2>(_ m1: Int, from: M1, to: M2) -> Int where M1: BTreeMetric<Summary>, M2: BTreeMetric<Summary> {
             if m1 == 0 {
                 return 0
             }
@@ -243,11 +243,11 @@ extension BTree {
 }
 
 extension BTree.Node where Summary: BTreeDefaultMetric {
-    func count(_ metric: some BTreeMetric<Summary>, upThrough offset: Int) -> Int {
+    func count<M>(_ metric: M, upThrough offset: Int) -> Int where M: BTreeMetric<Summary> {
         convert(offset, from: Summary.defaultMetric, to: metric)
     }
 
-    func offset(of measured: Int, measuredIn metric: some BTreeMetric<Summary>) -> Int {
+    func offset<M>(of measured: Int, measuredIn metric: M) -> Int where M: BTreeMetric<Summary> {
         convert(measured, from: metric, to: Summary.defaultMetric)
     }
 }
