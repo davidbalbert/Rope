@@ -20,9 +20,9 @@ struct Chunk: BTreeLeaf {
     var prefixCount: Int
     var suffixCount: Int
 
-    // the a breaker ready to consume the first
+    // a breaker ready to consume the first
     // scalar in the Chunk. Used for prefix/suffix
-    // calculation in push(possiblySplitting:)
+    // calculation in pushMaybeSplitting(other:)
     var breaker: Rope.GraphemeBreaker
 
     var count: Int {
