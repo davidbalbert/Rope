@@ -519,12 +519,13 @@ extension BTree {
         }
         
         func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
+            assert(measuredUnits <= chunk.characters.count)
+
             let startIndex = chunk.characters.startIndex
             let i = chunk.characters.index(startIndex, offsetBy: measuredUnits)
             
             assert(chunk.isValidCharacterIndex(i))
-            assert(measuredUnits < chunk.characters.count)
-            
+
             return chunk.prefixCount + chunk.string.utf8.distance(from: startIndex, to: i)
             
         }
