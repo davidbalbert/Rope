@@ -210,6 +210,8 @@ extension BTree {
         }
 
         func convert<M1, M2>(_ m1: Int, from: M1, to: M2) -> Int where M1: BTreeMetric<Summary>, M2: BTreeMetric<Summary> {
+            assert(m1 <= measure(using: from))
+
             if m1 == 0 {
                 return 0
             }
@@ -219,7 +221,7 @@ extension BTree {
             var m2 = 0
             var node = self
             while !node.isLeaf {
-                let last = node
+                let parent = node
                 for child in node.children {
                     let childM1 = child.measure(using: from)
                     if m1 <= childM1 {
@@ -229,7 +231,7 @@ extension BTree {
                     m1 -= childM1
                     m2 += child.measure(using: to)
                 }
-                assert(node !== last)
+                assert(node !== parent)
             }
 
             let base = from.convertToBaseUnits(m1, in: node.leaf)
