@@ -373,6 +373,7 @@ final class RopeTests: XCTestCase {
         let s = "🙂🙁"
 
         XCTAssertEqual(2, s.count)
+        XCTAssertEqual(2, s.unicodeScalars.count)
         XCTAssertEqual(4, s.utf16.count)
 
         XCTAssertEqual(0xd83d, s.utf16[s.utf16Index(at: 0)])
@@ -383,6 +384,7 @@ final class RopeTests: XCTestCase {
         let r = Rope(s)
 
         XCTAssertEqual(2, r.count)
+        XCTAssertEqual(2, r.unicodeScalars.count)
         XCTAssertEqual(4, r.utf16.count)
 
         XCTAssertEqual(0xd83d, r.utf16[0])
