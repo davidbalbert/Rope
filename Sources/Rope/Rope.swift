@@ -55,11 +55,19 @@ extension Rope.Index {
             return nil
         }
 
+        if offset >= chunk.count {
+            return nil
+        }
+
         return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
     }
 
     func readUTF16() -> UTF16.CodeUnit? {
         guard let (chunk, offset) = read() else {
+            return nil
+        }
+
+        if offset >= chunk.count {
             return nil
         }
 
@@ -74,6 +82,10 @@ extension Rope.Index {
             return nil
         }
 
+        if offset >= chunk.count {
+            return nil
+        }
+
         let i = chunk.string.utf8Index(at: offset)
         assert(chunk.isValidUnicodeScalarIndex(i))
 
@@ -82,6 +94,10 @@ extension Rope.Index {
 
     func readChar() -> Character? {
         guard let (chunk, offset) = read() else {
+            return nil
+        }
+
+        if offset >= chunk.count {
             return nil
         }
 
@@ -226,7 +242,7 @@ extension Rope: RangeReplaceableCollection {
 
 extension Rope {
     func index(at offset: Int) -> Index {
-        Index(offsetBy: offset, in: root)
+        index(at: offset, using: .characters)
     }
 
     func index(roundingDown i: Index) -> Index {
@@ -237,6 +253,10 @@ extension Rope {
 extension Rope {
     mutating func append(_ string: String) {
         append(contentsOf: string)
+    }
+
+    subscript(offset: Int) -> Character {
+        self[index(at: offset, using: .characters)]
     }
 }
 
@@ -420,25 +440,44 @@ extension BTree {
         }
         
         func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
-            fatalError("not implemented")
+            let startIndex = chunk.string.startIndex
+
+            let i = chunk.string.utf16Index(at: measuredUnits)
+            return chunk.string.utf8.distance(from: startIndex, to: i)
         }
         
         func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
-            fatalError("not implemented")
+            let startIndex = chunk.string.startIndex
+            let i = chunk.string.utf8Index(at: baseUnits)
+
+            return chunk.string.utf16.distance(from: startIndex, to: i)
         }
-        
+
         func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-            fatalError("not implemented")
+            let i = chunk.string.utf8Index(at: offset)
+            return chunk.isValidUTF16Index(i)
         }
-        
+
         func prev(_ offset: Int, in chunk: Chunk) -> Int? {
-            fatalError("not implemented")
+            assert(offset > 0)
+
+            let startIndex = chunk.string.startIndex
+            let current = chunk.string.utf8Index(at: offset)
+
+            let target = chunk.string.utf16.index(before: current)
+            return chunk.string.utf8.distance(from: startIndex, to: target)
         }
-        
+
         func next(_ offset: Int, in chunk: Chunk) -> Int? {
-            fatalError("not implemented")
+            assert(offset < chunk.count)
+
+            let startIndex = chunk.string.startIndex
+            let current = chunk.string.utf8Index(at: offset)
+
+            let target = chunk.string.utf16.index(after: current)
+            return chunk.string.utf8.distance(from: startIndex, to: target)
         }
-        
+
         var canFragment: Bool {
             false
         }

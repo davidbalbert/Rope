@@ -130,7 +130,7 @@ extension BTree {
         }
 
         // Mutating. Self must be unique at this point.
-        func concatinate(_ other: Node) -> Node {
+        func concatenate(_ other: Node) -> Node {
             let h1 = height
             let h2 = other.height
 
@@ -141,7 +141,7 @@ extension BTree {
 
                 // Concatinate mutates self, but self is already guaranteed to be
                 // unique at this point.
-                let new = concatinate(other.children[0])
+                let new = concatenate(other.children[0])
                 if new.height == h2 - 1 {
                     return Node(children: [new], mergedWith: other.children.dropFirst())
                 } else {
@@ -169,7 +169,7 @@ extension BTree {
                     children[children.count-1] = children[children.count-1].clone()
                 }
 
-                let new = children[children.count - 1].concatinate(other)
+                let new = children[children.count - 1].concatenate(other)
                 if new.height == h1 - 1 {
                     return Node(children: children.dropLast(), mergedWith: [new])
                 } else {

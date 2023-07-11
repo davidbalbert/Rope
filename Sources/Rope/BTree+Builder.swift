@@ -27,7 +27,7 @@ extension BTree {
                         popped = popped.clone()
                     }
 
-                    n = popped.concatinate(n)
+                    n = popped.concatenate(n)
                     isUnique = true
                 } else if var (lastNode, _) = stack.last?.last, lastNode.height == n.height {
                     if !lastNode.isUndersized && !n.isUndersized {
@@ -145,7 +145,7 @@ extension BTree {
                         popped = popped.clone()
                     }
 
-                    n = popped.concatinate(n)
+                    n = popped.concatenate(n)
                 }
 
                 return n
