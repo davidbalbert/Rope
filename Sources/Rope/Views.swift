@@ -72,6 +72,12 @@ extension Rope.UTF16View {
     }
 }
 
+extension Rope.UTF16View {
+    subscript(offset: Int) -> UTF16.CodeUnit {
+        self[base.index(at: offset, using: .utf16)]
+    }
+}
+
 extension Rope {
     var unicodeScalars: UnicodeScalarView {
         UnicodeScalarView(base: self)
@@ -128,6 +134,12 @@ extension Rope.UnicodeScalarView: BidirectionalCollection {
 
     var count: Int {
         base.root.measure(using: .unicodeScalars)
+    }
+}
+
+extension Rope.UnicodeScalarView {
+    subscript(offset: Int) -> UnicodeScalar {
+        self[base.index(at: offset, using: .unicodeScalars)]
     }
 }
 

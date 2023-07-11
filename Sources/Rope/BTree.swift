@@ -124,4 +124,9 @@ extension BTree where Summary: BTreeDefaultMetric {
         _ = i.floorLeaf()! // a valid index will always have a leaf
         return i
     }
+
+    func index<M>(at offset: Int, using metric: M) -> Index where M: BTreeMetric<Summary> {
+        let count = root.offset(of: offset, measuredIn: metric)
+        return Index(offsetBy: count, in: root)
+    }
 }

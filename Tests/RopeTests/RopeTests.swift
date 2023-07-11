@@ -355,7 +355,7 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(2000, r.utf16.count)
         XCTAssertEqual(2001, r.utf8.count)
 
-        XCTAssertEqual("a\u{0301}", r[r.index(at: 999)])
+        XCTAssertEqual("a\u{0301}", r[999])
     }
 
 //
