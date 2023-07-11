@@ -65,8 +65,50 @@ extension Rope {
     }
 }
 
-// TODO: make this extension implement BidirectionalCollection
-extension Rope.UTF16View {
+extension Rope.UTF16View: BidirectionalCollection {
+    struct Iterator: IteratorProtocol {
+        var index: Rope.Index
+
+        mutating func next() -> UTF16.CodeUnit? {
+            let u = index.readUTF16()
+            index.next(using: .utf16)
+            return u
+        }
+    }
+
+    func makeIterator() -> Iterator {
+        Iterator(index: Index(startOf: base.root))
+    }
+
+    var startIndex: Rope.Index {
+        base.startIndex
+    }
+
+    var endIndex: Rope.Index {
+        base.endIndex
+    }
+
+    subscript(position: Rope.Index) -> UTF16.CodeUnit {
+        position.validate(for: base.root)
+        return position.readUTF16()!
+    }
+
+    func index(before i: Rope.Index) -> Rope.Index {
+        base.index(before: i, using: .utf16)
+    }
+
+    func index(after i: Rope.Index) -> Rope.Index {
+        base.index(after: i, using: .utf16)
+    }
+
+    func index(_ i: Rope.Index, offsetBy distance: Int) -> Rope.Index {
+        base.index(i, offsetBy: distance, using: .utf16)
+    }
+
+    func index(_ i: Rope.Index, offsetBy distance: Int, limitedBy limit: Rope.Index) -> Rope.Index? {
+        base.index(i, offsetBy: distance, limitedBy: limit, using: .utf16)
+    }
+
     var count: Int {
         base.root.measure(using: .utf16)
     }

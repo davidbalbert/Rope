@@ -16,6 +16,10 @@ extension StringProtocol {
         utf8.index(startIndex, offsetBy: offset)
     }
 
+    func utf16Index(at offset: Int) -> Index {
+        utf16.index(startIndex, offsetBy: offset)
+    }
+
     func unicodeScalarIndex(at offset: Int) -> Index {
         unicodeScalars.index(startIndex, offsetBy: offset)
     }

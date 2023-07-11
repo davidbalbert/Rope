@@ -358,6 +358,57 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual("a\u{0301}", r[999])
     }
 
+    func testUTF16Indexing() {
+        let r = Rope("abcdef")
+
+        XCTAssertEqual(97, r.utf16[0])
+        XCTAssertEqual(98, r.utf16[1])
+        XCTAssertEqual(99, r.utf16[2])
+        XCTAssertEqual(100, r.utf16[3])
+        XCTAssertEqual(101, r.utf16[4])
+        XCTAssertEqual(102, r.utf16[5])
+    }
+
+    func testUTF16IndexingSurrogatePairs() {
+        let s = "🙂🙁"
+
+        XCTAssertEqual(2, s.count)
+        XCTAssertEqual(4, s.utf16.count)
+
+        XCTAssertEqual(0xd83d, s.utf16[s.utf16Index(at: 0)])
+        XCTAssertEqual(0xde42, s.utf16[s.utf16Index(at: 1)])
+        XCTAssertEqual(0xd83d, s.utf16[s.utf16Index(at: 2)])
+        XCTAssertEqual(0xde41, s.utf16[s.utf16Index(at: 3)])
+
+        let r = Rope(s)
+
+        XCTAssertEqual(2, r.count)
+        XCTAssertEqual(4, r.utf16.count)
+
+        XCTAssertEqual(0xd83d, r.utf16[0])
+        XCTAssertEqual(0xde42, r.utf16[1])
+        XCTAssertEqual(0xd83d, r.utf16[2])
+        XCTAssertEqual(0xde41, r.utf16[3])
+    }
+
+    func testUTF16Iterator() {
+        let r = Rope("abcdef")
+
+        let base = 97
+        for (i, u) in r.utf16.enumerated() {
+            XCTAssertEqual(base+i, Int(u))
+        }
+    }
+
+    func testUTF16ReverseIterator() {
+        let r = Rope("abcdef")
+
+        let base = 102
+        for (i, u) in r.utf16.reversed().enumerated() {
+            XCTAssertEqual(base-i, Int(u))
+        }
+    }
+
 //
 //    func testSummarizeCombiningCharactersSplit() {
 //        // TODO
