@@ -252,4 +252,11 @@ extension BTree.Node where Summary: BTreeDefaultMetric {
     func offset<M>(of measured: Int, measuredIn metric: M) -> Int where M: BTreeMetric<Summary> {
         convert(measured, from: metric, to: Summary.defaultMetric)
     }
+
+    func state<M>(for measured: Int, measuredIn metric: M, at index: BTree.Index) -> Summary.IndexState where M: BTreeMetric<Summary> {
+        assert(index.isValid)
+        let measuredOffsetOfLeaf = count(metric, upThrough: index.offsetOfLeaf)
+        let measuredInLeaf = measured - measuredOffsetOfLeaf
+        return metric.state(for: measuredInLeaf, in: index.leaf!)
+    }
 }

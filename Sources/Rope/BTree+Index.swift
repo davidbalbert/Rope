@@ -22,6 +22,8 @@ extension BTree {
     }
 
     struct Index {
+        typealias State = Summary.IndexState
+
         weak var root: Node?
         let mutationCount: Int
 
@@ -32,13 +34,25 @@ extension BTree {
         var leaf: Leaf? // Present unless the index is invalid.
         var offsetOfLeaf: Int // Position of the first element of the leaf in base units. -1 if we're invalid.
 
+        // Arbitrary state that can be stored in the index, to represent some metric-specific information about
+        // the current location that can't be represented by position alone. E.g. whether we're pointing to a
+        // UTF-16 trailing surrogate.
+        //
+        // Assumptions:
+        // - The only way state can be non-zero is after a call to next(using:) or prev(using:)
+        // - It is .zero at the beginning of each leaf
+        // - It is .zero at the end of each leaf
+        // - It is .zero for new indices, and after calls to Index.set
+        // - It is .zero for invalid indices.
+        var state: State
+
         // Must be less than leaf.count unless we're at the end of the rope, in which case
         // it's equal to leaf.count.
         var offsetInLeaf: Int {
             position - offsetOfLeaf
         }
 
-        init(offsetBy offset: Int, in root: Node) {
+        init(offsetBy offset: Int, in root: Node, state: State) {
             precondition((0...root.count).contains(offset), "Index out of bounds")
 
             self.root = root
@@ -47,6 +61,7 @@ extension BTree {
             self.path = []
             self.leaf = nil
             self.offsetOfLeaf = -1
+            self.state = state
 
             descend()
         }
@@ -72,6 +87,9 @@ extension BTree {
             self.offsetOfLeaf = offset
         }
 
+        init(offsetBy offset: Int, in root: Node) {
+            self.init(offsetBy: offset, in: root, state: .zero)
+        }
 
         init(startOf root: Node) {
             self.init(offsetBy: 0, in: root)
@@ -83,6 +101,10 @@ extension BTree {
 
         var isAtEnd: Bool {
             leaf != nil && root?.count == position
+        }
+
+        var isValid: Bool {
+            leaf != nil
         }
 
         func isBoundary<M>(in metric: M) -> Bool where M: BTreeMetric<Summary> {
@@ -137,6 +159,7 @@ extension BTree {
             }
 
             descend()
+            state = .zero
         }
 
         @discardableResult
@@ -233,10 +256,9 @@ extension BTree {
                 return nil
             }
 
-            let newOffsetInLeaf = metric.prev(offsetInLeaf, in: leaf!)
-
-            if let newOffsetInLeaf {
+            if let (newOffsetInLeaf, newState) = metric.prev(offsetInLeaf, state: state, in: leaf!) {
                 position = offsetOfLeaf + newOffsetInLeaf
+                state = newState
                 return position
             }
 
@@ -244,6 +266,7 @@ extension BTree {
                 // Didn't find a boundary, but trailing metrics have
                 // a boundary at startIndex.
                 position = 0
+                state = .zero
                 return position
             }
 
@@ -256,24 +279,26 @@ extension BTree {
 
             let isLastLeaf = offsetOfLeaf + leaf!.count == root!.count
 
-            let newOffsetInLeaf = metric.next(offsetInLeaf, in: leaf!)
+            let newLocation = metric.next(offsetInLeaf, state: state, in: leaf!)
 
-            if newOffsetInLeaf == nil && isLastLeaf && metric.type == .leading {
+            if newLocation == nil && isLastLeaf && metric.type == .leading {
                 // Didn't find a boundary, but leading metrics have a
                 // boundary at endIndex.
                 position = offsetOfLeaf + leaf!.count
+                state = .zero
                 return position
             }
 
-            guard let newOffsetInLeaf else {
+            guard let (newOffsetInLeaf, newState) = newLocation else {
                 return nil
             }
 
             if newOffsetInLeaf == leaf!.count && !isLastLeaf {
-                // sets position = offsetOfLeaf + leaf!.count
+                // sets position = offsetOfLeaf + leaf!.count and zeros out state
                 nextLeaf()
             } else {
                 position = offsetOfLeaf + newOffsetInLeaf
+                state = newState
             }
 
             return position
@@ -314,6 +339,7 @@ extension BTree {
             self.leaf = leaf
             self.offsetOfLeaf -= leaf.count
             self.position = offsetOfLeaf
+            self.state = .zero
 
             return read()
         }
@@ -351,6 +377,8 @@ extension BTree {
 
             self.leaf = node.leaf
             self.offsetOfLeaf = position
+            self.state = .zero
+
             return read()
         }
         
@@ -372,6 +400,7 @@ extension BTree {
             }
 
             position = offsetOfLeaf
+            state = .zero
             return leaf
         }
 
@@ -423,6 +452,7 @@ extension BTree {
             self.leaf = node.leaf
             self.position = offset
             self.offsetOfLeaf = offset
+            self.state = .zero // we're at the beginning of the leaf, so state is .zero by definition
         }
 
         func validate(for root: Node) {
@@ -449,6 +479,7 @@ extension BTree {
         mutating func invalidate() {
             self.leaf = nil
             self.offsetOfLeaf = -1
+            self.state = .zero
         }
     }
 }

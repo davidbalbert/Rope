@@ -13,7 +13,14 @@ import Foundation
 
 typealias Rope = BTree<RopeSummary>
 
+extension Bool: BTreeIndexState {
+    static var zero: Bool { false }
+}
+
 struct RopeSummary: BTreeSummary {
+    // see Rope.Index.isUTF16TrailingSurrogate
+    typealias IndexState = Bool
+
     var utf16: Int
     var scalars: Int
     var chars: Int
@@ -50,6 +57,10 @@ extension RopeSummary: BTreeDefaultMetric {
 }
 
 extension Rope.Index {
+    var isUTF16TrailingSurrogate: Bool {
+        state
+    }
+
     func readUTF8() -> UTF8.CodeUnit? {
         guard let (chunk, offset) = read() else {
             return nil
@@ -74,7 +85,11 @@ extension Rope.Index {
         let i = chunk.string.utf8Index(at: offset)
         assert(chunk.isValidUTF16Index(i))
 
-        return chunk.string.utf16[i]
+        if isUTF16TrailingSurrogate {
+            return chunk.string.utf16[chunk.string.utf16.index(after: i)]
+        } else {
+            return chunk.string.utf16[i]
+        }
     }
 
     func readScalar() -> Unicode.Scalar? {
@@ -404,19 +419,19 @@ extension BTree {
         func convertFromBaseUnits(_ baseUnits: Int, in leaf: Chunk) -> Int {
             baseUnits
         }
-        
+
         func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
             true
         }
         
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+        func prev(_ offset: Int, state: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset > 0)
-            return offset - 1
+            return (offset - 1, false)
         }
         
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+        func next(_ offset: Int, state: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset < chunk.count)
-            return offset + 1
+            return (offset + 1, false)
         }
         
         var canFragment: Bool {
@@ -458,24 +473,51 @@ extension BTree {
             return chunk.isValidUTF16Index(i)
         }
 
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+        func prev(_ offset: Int, state isUTF16TrailingSurrogate: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset > 0)
 
             let startIndex = chunk.string.startIndex
-            let current = chunk.string.utf8Index(at: offset)
+            var current = chunk.string.utf8Index(at: offset)
+            if isUTF16TrailingSurrogate {
+                current = chunk.string.utf16.index(after: current)
+                assert(UTF16.isTrailSurrogate(chunk.string.utf16[current]))
+            }
 
             let target = chunk.string.utf16.index(before: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
+
+            let newOffset = chunk.string.utf8.distance(from: startIndex, to: target)
+            let newState = UTF16.isTrailSurrogate(chunk.string.utf16[target])
+
+            return (newOffset, newState)
         }
 
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+        func next(_ offset: Int, state isUTF16TrailingSurrogate: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset < chunk.count)
 
             let startIndex = chunk.string.startIndex
-            let current = chunk.string.utf8Index(at: offset)
+            var current = chunk.string.utf8Index(at: offset)
+            if isUTF16TrailingSurrogate {
+                current = chunk.string.utf16.index(after: current)
+                assert(UTF16.isTrailSurrogate(chunk.string.utf16[current]))
+            }
 
             let target = chunk.string.utf16.index(after: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
+
+            let newOffset = chunk.string.utf8.distance(from: startIndex, to: target)
+
+            let newState: Bool
+            if target < chunk.string.endIndex {
+                newState = UTF16.isTrailSurrogate(chunk.string.utf16[target])
+            } else {
+                newState = false
+            }
+
+            return (newOffset, newState)
+        }
+
+        func state(for measuredUnits: Int, in chunk: Chunk) -> State {
+            let i = chunk.string.utf16Index(at: measuredUnits)
+            return UTF16.isTrailSurrogate(chunk.string.utf16[i])
         }
 
         var canFragment: Bool {
@@ -511,30 +553,30 @@ extension BTree {
 
             return chunk.string.unicodeScalars.distance(from: startIndex, to: i)
         }
-        
+
         func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
             let i = chunk.string.utf8Index(at: offset)
             return chunk.isValidUnicodeScalarIndex(i)
         }
         
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+        func prev(_ offset: Int, state: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset > 0)
-            
+
             let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
 
             let target = chunk.string.unicodeScalars.index(before: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
+            return (chunk.string.utf8.distance(from: startIndex, to: target), false)
         }
         
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+        func next(_ offset: Int, state: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset < chunk.count)
 
             let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
 
             let target = chunk.string.unicodeScalars.index(after: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
+            return (chunk.string.utf8.distance(from: startIndex, to: target), false)
         }
         
         var canFragment: Bool {
@@ -575,7 +617,7 @@ extension BTree {
             
             return chunk.characters.distance(from: startIndex, to: i)
         }
-        
+
         func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
             // The only time offset will equal chunk.count is
             // when chunk is the last offset of the rope.
@@ -591,7 +633,7 @@ extension BTree {
             return chunk.isValidCharacterIndex(i)
         }
         
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+        func prev(_ offset: Int, state: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset > 0)
 
             let startIndex = chunk.string.startIndex
@@ -602,10 +644,10 @@ extension BTree {
             }
             
             let target = chunk.string.index(before: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
+            return (chunk.string.utf8.distance(from: startIndex, to: target), false)
         }
         
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+        func next(_ offset: Int, state: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset < chunk.count)
 
             let startIndex = chunk.string.startIndex
@@ -616,7 +658,7 @@ extension BTree {
             }
             
             let target = chunk.string.index(after: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
+            return (chunk.string.utf8.distance(from: startIndex, to: target), false)
         }
         
         var canFragment: Bool {
@@ -659,7 +701,7 @@ extension BTree {
                 Chunk.countNewlines(in: buf[..<baseUnits])
             }
         }
-        
+
         func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
             assert(offset > 0)
             
@@ -668,21 +710,33 @@ extension BTree {
             }
         }
         
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+        func prev(_ offset: Int, state: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset > 0)
-            
+
             let nl = UInt8(ascii: "\n")
-            return chunk.string.withExistingUTF8 { buf in
+            let newOffset = chunk.string.withExistingUTF8 { buf in
                 buf[..<(offset - 1)].lastIndex(of: nl).map { $0 + 1 }
+            }
+
+            if let newOffset {
+                return (newOffset, false)
+            } else {
+                return nil
             }
         }
         
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+        func next(_ offset: Int, state: Bool, in chunk: Chunk) -> (Int, Bool)? {
             assert(offset < chunk.count)
 
             let nl = UInt8(ascii: "\n")
-            return chunk.string.withExistingUTF8 { buf in
+            let newOffset = chunk.string.withExistingUTF8 { buf in
                 buf[offset...].firstIndex(of: nl).map { $0 + 1 }
+            }
+
+            if let newOffset {
+                return (newOffset, false)
+            } else {
+                return nil
             }
         }
         

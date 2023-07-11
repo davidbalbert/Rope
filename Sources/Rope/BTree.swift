@@ -86,6 +86,8 @@ extension BTree where Summary: BTreeDefaultMetric {
         precondition(m+distance >= 0 && m+distance <= root.measure(using: metric), "Index out of bounds")
         let pos = root.offset(of: m + distance, measuredIn: metric)
         i.set(pos)
+        // TODO: this could be a mutating i.setState(for: offset, using: m)
+        i.state = root.state(for: m + distance, measuredIn: metric, at: i)
 
         return i
     }
@@ -105,6 +107,8 @@ extension BTree where Summary: BTreeDefaultMetric {
         precondition(m+distance >= 0 && m+distance <= root.measure(using: metric), "Index out of bounds")
         let pos = root.offset(of: m + distance, measuredIn: metric)
         i.set(pos)
+        // TODO: this could be a mutating i.setState(for: offset, using: m)
+        i.state = root.state(for: m + distance, measuredIn: metric, at: i)
 
         return i
     }
@@ -127,6 +131,9 @@ extension BTree where Summary: BTreeDefaultMetric {
 
     func index<M>(at offset: Int, using metric: M) -> Index where M: BTreeMetric<Summary> {
         let count = root.offset(of: offset, measuredIn: metric)
-        return Index(offsetBy: count, in: root)
+        var i = Index(offsetBy: count, in: root)
+        // TODO: this could be a mutating i.setState(for: offset, using: m)
+        i.state = root.state(for: offset, measuredIn: metric, at: i)
+        return i
     }
 }

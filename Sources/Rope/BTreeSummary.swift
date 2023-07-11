@@ -9,6 +9,7 @@ import Foundation
 
 protocol BTreeSummary {
     associatedtype Leaf: BTreeLeaf
+    associatedtype IndexState: BTreeIndexState
 
     // A subset of AdditiveArithmetic
     static func += (lhs: inout Self, rhs: Self)
@@ -20,4 +21,8 @@ protocol BTreeDefaultMetric: BTreeSummary {
     associatedtype DefaultMetric: BTreeMetric<Self>
 
     static var defaultMetric: DefaultMetric { get }
+}
+
+protocol BTreeIndexState {
+    static var zero: Self { get }
 }
