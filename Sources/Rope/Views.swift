@@ -48,10 +48,58 @@ extension Rope {
     }
 }
 
-// TODO: make this extension implement BidirectionalCollection
-extension Rope.UTF8View {
+extension Rope.UTF8View: BidirectionalCollection {
+    struct Iterator: IteratorProtocol {
+        var index: Rope.Index
+
+        mutating func next() -> UTF8.CodeUnit? {
+            let b = index.readUTF8()
+            index.next(using: .utf8)
+            return b
+        }
+    }
+
+    func makeIterator() -> Iterator {
+        Iterator(index: Index(startOf: base.root))
+    }
+
+    var startIndex: Rope.Index {
+        base.startIndex
+    }
+
+    var endIndex: Rope.Index {
+        base.endIndex
+    }
+
+    subscript(position: Rope.Index) -> UTF8.CodeUnit {
+        position.validate(for: base.root)
+        return position.readUTF8()!
+    }
+
+    func index(before i: Rope.Index) -> Rope.Index {
+        base.index(before: i, using: .utf8)
+    }
+
+    func index(after i: Rope.Index) -> Rope.Index {
+        base.index(after: i, using: .utf8)
+    }
+
+    func index(_ i: Rope.Index, offsetBy distance: Int) -> Rope.Index {
+        base.index(i, offsetBy: distance, using: .utf8)
+    }
+
+    func index(_ i: Rope.Index, offsetBy distance: Int, limitedBy limit: Rope.Index) -> Rope.Index? {
+        base.index(i, offsetBy: distance, limitedBy: limit, using: .utf8)
+    }
+
     var count: Int {
         base.root.measure(using: .utf8)
+    }
+}
+
+extension Rope.UTF8View {
+    subscript(offset: Int) -> UTF8.CodeUnit {
+        self[base.index(at: offset, using: .utf8)]
     }
 }
 
