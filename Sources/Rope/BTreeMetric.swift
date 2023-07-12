@@ -23,8 +23,8 @@ protocol BTreeMetric<Summary> {
     func isBoundary(_ offset: Int, in leaf: Summary.Leaf) -> Bool
 
     // Never called with offset == 0
-    func prev(_ offset: Int, in leaf: Summary.Leaf) -> Int?
-    func next(_ offset: Int, in leaf: Summary.Leaf) -> Int?
+    func prev(_ offset: Int, in leaf: Summary.Leaf) -> (Int, Int?)?
+    func next(_ offset: Int, in leaf: Summary.Leaf) -> (Int, Int?)?
 
     var canFragment: Bool { get }
     var type: BTree<Summary>.MetricType { get }
