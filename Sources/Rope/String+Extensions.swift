@@ -42,3 +42,9 @@ extension String {
         }
     }
 }
+
+extension NSString {
+    convenience init(_ rope: Rope) {
+        self.init(string: String(rope))
+    }
+}
