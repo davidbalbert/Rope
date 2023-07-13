@@ -17,7 +17,7 @@ extension BTree {
     }
 }
 
-extension BTree.LeavesView: Sequence {
+extension BTree.LeavesView: BidirectionalCollection {
     struct Iterator: IteratorProtocol {
         var index: BTree.Index
 
@@ -32,7 +32,33 @@ extension BTree.LeavesView: Sequence {
     }
 
     func makeIterator() -> Iterator {
-        Iterator(index: BTree.Index(startOf: base.root))
+        Iterator(index: base.startIndex)
+    }
+
+    var startIndex: BTree.Index {
+        base.startIndex
+    }
+
+    var endIndex: BTree.Index {
+        base.endIndex
+    }
+
+    subscript(position: BTree.Index) -> Summary.Leaf {
+        position.validate(for: base.root)
+        let (leaf, _) = position.read()!
+        return leaf
+    }
+
+    func index(before i: BTree.Index) -> BTree.Index {
+        var i = i
+        _ = i.prevLeaf()!
+        return i
+    }
+
+    func index(after i: BTree.Index) -> BTree.Index {
+        var i = i
+        _ = i.nextLeaf()!
+        return i
     }
 }
 
