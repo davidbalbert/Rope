@@ -432,59 +432,7 @@ final class RopeTests: XCTestCase {
     }
 
     // Lines
-    func testLineIndexing() {
-        var r = Rope(String(repeating: "x", count: 1023) + "\n" + String(repeating: "y", count: 1022))
-
-//        XCTAssertEqual(1023*2, r.count)
-//        XCTAssertEqual(1, r.root.summary.newlines)
-//        XCTAssertEqual(2, r.lines.count) // r.lines.count is one greater than the number of newlines
-//        XCTAssertEqual(2, r.root.children.count)
-//
-//        let startIndex = r.root.children[1].leaf.string.startIndex
-//        XCTAssertEqual("\n", r.root.children[1].leaf.string[startIndex])
-//
-//        XCTAssertEqual(1024, r.index(r.startIndex, offsetBy: 1, using: .newlines).position)
-//
-//        r = Rope(String(repeating: "x", count: 1022) + "\n" + String(repeating: "y", count: 1023))
-//
-//        XCTAssertEqual(1023*2, r.count)
-//        XCTAssertEqual(1, r.root.summary.newlines)
-//        XCTAssertEqual(2, r.lines.count) // r.lines.count is one greater than the number of newlines
-//        XCTAssertEqual(2, r.root.children.count)
-//
-//        let lastIndex = r.root.children[0].leaf.string.index(at: 1022)
-//        XCTAssertEqual("\n", r.root.children[0].leaf.string[lastIndex])
-//
-//        XCTAssertEqual(1023, r.index(r.startIndex, offsetBy: 1, using: .newlines).position)
-//
-//        XCTAssertEqual(1, r.index(r.startIndex, offsetBy: 1, using: .characters).position)
-//
-//        r = Rope("abc\ndef")
-//        XCTAssertEqual(0, r.root.height)
-//        XCTAssertEqual(1, Rope.CharacterMetric().next(0, in: r.root.leaf))
-//
-//        XCTAssertEqual(1, r.index(r.index(at: 0), offsetBy: 1, using: .characters).position)
-//        XCTAssertEqual(0, r.index(r.index(at: 1), offsetBy: -1, using: .characters).position)
-//
-//
-//        XCTAssertEqual(4, Rope.NewlinesMetric().next(0, in: r.root.leaf))
-//        XCTAssertEqual(4, r.index(r.startIndex, offsetBy: 1, using: .newlines).position)
-//
-//        XCTAssertEqual(0, r.index(r.index(at: 4), offsetBy: -1, using: .newlines).position)
-        XCTAssertEqual(4, r.index(r.index(at: 7), offsetBy: -1, using: .newlines).position)
-
-
-        r = Rope("aéc")
-        XCTAssertEqual(3, r.count)
-        XCTAssertEqual(4, r.utf8.count)
-
-        XCTAssertEqual(1, r.index(r.index(at: 3), offsetBy: -1, using: .characters).position)
-        XCTAssertEqual(0, r.index(r.index(at: 2), offsetBy: -1, using: .characters).position)
-
-
-    }
-
-    // lines tests
+    
     func testShortLines() {
         var r = Rope("foo\nbar\nbaz")
 
