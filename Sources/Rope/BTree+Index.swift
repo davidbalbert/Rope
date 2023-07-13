@@ -270,7 +270,7 @@ extension BTree {
             }
 
             if newOffsetInLeaf == leaf!.count && !isLastLeaf {
-                // sets position = offsetOfLeaf + leaf!.count
+                // sets position = offsetOfLeaf + leaf!.count, offsetInLeaf will be 0.
                 nextLeaf()
             } else {
                 position = offsetOfLeaf + newOffsetInLeaf
