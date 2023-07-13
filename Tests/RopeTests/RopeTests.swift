@@ -192,7 +192,7 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(11, r.root.summary.chars)
         XCTAssertEqual(2, r.root.summary.newlines)
 
-        var i = r.index(r.startIndex, offsetBy: 5)
+        var i = r.utf8.index(at: 5)
         r.insert(contentsOf: "e", at: i)
         XCTAssertEqual("foo\nbear\nbaz", String(r))
 
@@ -202,7 +202,7 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(12, r.root.summary.chars)
         XCTAssertEqual(2, r.root.summary.newlines)
 
-        i = r.index(r.startIndex, offsetBy: 3)
+        i = r.utf8.index(at: 3)
         r.remove(at: i)
         XCTAssertEqual("foobear\nbaz", String(r))
 
@@ -310,7 +310,7 @@ final class RopeTests: XCTestCase {
         // this offset is in Characters, not UTF-8 code units or code points.
         // The "a" should be inserted after the "ó".
 
-        let i = r.index(r.startIndex, offsetBy: 3)
+        let i = r.index(at: 3)
         r.insert(contentsOf: "a", at: i)
         XCTAssertEqual("foo\u{0301}a\nbar\nbaz", String(r)) // "foóa"
 
@@ -319,6 +319,69 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(13, r.utf16Count)
         XCTAssertEqual(14, r.utf8.count)
         XCTAssertEqual(3, r.lines.count)
+    }
+
+    func testRoundDownCombiningCharacters() {
+        let r = Rope("foo\u{0301}") // "foó"
+        XCTAssertEqual(3, r.count)
+        XCTAssertEqual(4, r.unicodeScalars.count)
+        XCTAssertEqual(4, r.utf16Count)
+        XCTAssertEqual(5, r.utf8.count)
+
+        var r0 = r
+        var i = r0.utf8.index(at: 0)
+        i = r0.utf8.index(at: 0)
+        r0.insert(contentsOf: "a", at: i)
+        XCTAssertEqual("afoo\u{0301}", String(r0)) // "afoó"
+        XCTAssertEqual(4, r0.count)
+        XCTAssertEqual(5, r0.unicodeScalars.count)
+        XCTAssertEqual(5, r0.utf16Count)
+        XCTAssertEqual(6, r0.utf8.count)
+
+        var r1 = r
+        i = r1.utf8.index(at: 1)
+        r1.insert(contentsOf: "a", at: i)
+        XCTAssertEqual("faoo\u{0301}", String(r1)) // "faóo"
+        XCTAssertEqual(4, r1.count)
+        XCTAssertEqual(5, r1.unicodeScalars.count)
+        XCTAssertEqual(5, r1.utf16Count)
+        XCTAssertEqual(6, r1.utf8.count)
+
+        var r2 = r
+        i = r2.utf8.index(at: 2)
+        r2.insert(contentsOf: "a", at: i)
+        XCTAssertEqual("foao\u{0301}", String(r2)) // "foaó"
+        XCTAssertEqual(4, r2.count)
+        XCTAssertEqual(5, r2.unicodeScalars.count)
+        XCTAssertEqual(5, r2.utf16Count)
+        XCTAssertEqual(6, r2.utf8.count)
+
+        var r3 = r
+        i = r3.utf8.index(at: 3)
+        r3.insert(contentsOf: "a", at: i)
+        XCTAssertEqual("foao\u{0301}", String(r2)) // "foaó"
+        XCTAssertEqual(4, r3.count)
+        XCTAssertEqual(5, r3.unicodeScalars.count)
+        XCTAssertEqual(5, r3.utf16Count)
+        XCTAssertEqual(6, r3.utf8.count)
+
+        var r4 = r
+        i = r4.utf8.index(at: 4)
+        r4.insert(contentsOf: "a", at: i)
+        XCTAssertEqual("foao\u{0301}", String(r2)) // "foaó"
+        XCTAssertEqual(4, r4.count)
+        XCTAssertEqual(5, r4.unicodeScalars.count)
+        XCTAssertEqual(5, r4.utf16Count)
+        XCTAssertEqual(6, r4.utf8.count)
+
+        var r5 = r
+        i = r5.utf8.index(at: 5)
+        r5.insert(contentsOf: "a", at: i)
+        XCTAssertEqual("foo\u{0301}a", String(r5)) // "foóa"
+        XCTAssertEqual(4, r5.count)
+        XCTAssertEqual(5, r5.unicodeScalars.count)
+        XCTAssertEqual(5, r5.utf16Count)
+        XCTAssertEqual(6, r5.utf8.count)
     }
 
     func testSummarizeCombiningCharactersAtChunkBoundary() {
@@ -442,10 +505,33 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(400_002, r.root.summary.chars)    // 1 char
         XCTAssertEqual(200_001, r.root.summary.newlines) // 1 newline
     }
-//
-//    func testSummarizeOutsideBMP() {
-//        // TODO
-//    }
+
+    func testSummarizeSMP() {
+        var r = Rope("🙂🙂")
+
+        XCTAssertEqual(8, r.root.count)
+        XCTAssertEqual(4, r.root.summary.utf16)
+        XCTAssertEqual(2, r.root.summary.scalars)
+        XCTAssertEqual(2, r.root.summary.chars)
+        XCTAssertEqual(0, r.root.summary.newlines)
+
+        var i = r.utf8.index(at: 4)
+        r.insert(contentsOf: "🙁", at: i)
+        XCTAssertEqual("🙂🙁🙂", String(r))
+
+        XCTAssertEqual(12, r.root.count)
+        XCTAssertEqual(6, r.root.summary.utf16)
+        XCTAssertEqual(3, r.root.summary.scalars)
+        XCTAssertEqual(3, r.root.summary.chars)
+        XCTAssertEqual(0, r.root.summary.newlines)
+
+        // Inserting a character in the middle of a code point rounds down
+        i = r.utf8.index(at: 6)
+        r.insert(contentsOf: "👍", at: i)
+
+
+
+    }
 //
 //    func testSummarizeOutsideBMPSplit() {
 //        // TODO
