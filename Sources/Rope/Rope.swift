@@ -84,7 +84,7 @@ extension Rope.Index {
     }
 
     func readChar() -> Character? {
-        guard let (chunk, offset) = read() else {
+        guard var (chunk, offset) = read() else {
             return nil
         }
 
@@ -92,31 +92,42 @@ extension Rope.Index {
             return nil
         }
 
-        let i = chunk.string.utf8Index(at: offset)
+        let ci = chunk.string.utf8Index(at: offset)
 
-        assert(i >= chunk.firstBreak && i <= chunk.lastBreak)
-        assert(chunk.isValidCharacterIndex(i))
+        assert(ci >= chunk.firstBreak && ci <= chunk.lastBreak)
+        assert(chunk.isValidCharacterIndex(ci))
 
-        if chunk.suffixCount == 0 || i < chunk.lastBreak {
+        if ci < chunk.lastBreak {
             // the common case, the full character is in this chunk
-            return chunk.string[i]
+            return chunk.string[ci]
         }
 
-        // the character is split across chunks
-        var s = chunk.string[chunk.lastBreak...]
-
-        // TODO: this is wrong. A character may span more than one leaf. We need a loop here.
-        guard let (nextChunk, nextOffset) = peekNextLeaf() else {
-            // We have an incomplete grapheme cluster at the end of the
-            // the rope. This is uncommon. For example, imagine a rope
-            // that ends with a zero-width joiner.
-
-            assert(s.count == 1)
-            return s[s.startIndex]
+        var end = self
+        if end.next(using: .characters) == nil {
+            end = Rope.Index(endOf: root!)
         }
 
-        assert(nextOffset == 0)
-        s += nextChunk.string[..<nextChunk.firstBreak]
+        var s = ""
+        s.reserveCapacity(end.position - position)
+
+        var i = self
+        while true {
+            let count = min(chunk.count - offset, end.position - i.position)
+
+            let endOffset = offset + count
+            assert(endOffset <= chunk.count)
+
+            let cstart = chunk.string.utf8Index(at: offset)
+            let cend = chunk.string.utf8Index(at: endOffset)
+
+            s += chunk.string[cstart..<cend]
+
+            if i.position + count == end.position {
+                break
+            }
+
+            (chunk, offset) = i.nextLeaf()!
+        }
 
         assert(s.count == 1)
         return s[s.startIndex]
@@ -142,10 +153,10 @@ extension Rope.Index {
             let endOffset = offset + count
             assert(endOffset <= chunk.count)
 
-            let ci = chunk.string.utf8Index(at: offset)
-            let cj = chunk.string.utf8Index(at: endOffset)
+            let cstart = chunk.string.utf8Index(at: offset)
+            let cend = chunk.string.utf8Index(at: endOffset)
 
-            s += chunk.string[ci..<cj]
+            s += chunk.string[cstart..<cend]
 
             if i.position + count == end.position {
                 break
