@@ -71,6 +71,14 @@ extension Rope {
 
     struct UTF8View {
         var base: Rope
+
+        func index(at: Int) -> Index {
+            base.index(at: at, using: .utf8)
+        }
+
+        func index(roundingDown i: Index) -> Index {
+            i
+        }
     }
 }
 
@@ -136,6 +144,10 @@ extension Rope {
 
     struct UnicodeScalarView {
         var base: Rope
+
+        func index(at: Int) -> Index {
+            base.index(at: at, using: .unicodeScalars)
+        }
 
         func index(roundingDown i: Index) -> Index {
             base.index(roundingDown: i, using: .unicodeScalars)
@@ -205,6 +217,10 @@ extension Rope {
 
     struct LinesView {
         var base: Rope
+
+        func index(at: Int) -> Index {
+            base.index(at: at, using: .newlines)
+        }
 
         func index(roundingDown i: Index) -> Index {
             base.index(roundingDown: i, using: .newlines)

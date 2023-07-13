@@ -231,6 +231,8 @@ final class RopeTests: XCTestCase {
         // This is somewhat brittle. We're assuming that when the split happens
         // the first child ends up with 511 bytes and the second child ends up
         // with 513. We'll see how long this holds.
+        //
+        // The split puts a newline at the beginning of the second child.
 
         XCTAssertEqual(511, r.root.children[0].count)
         XCTAssertEqual(511, r.root.children[0].summary.utf16)
@@ -244,7 +246,7 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(513, r.root.children[1].summary.chars)
         XCTAssertEqual(129, r.root.children[1].summary.newlines)
 
-        let i = r.index(r.startIndex, offsetBy: 511)
+        let i = r.utf8.index(at: 511)
         r.insert(contentsOf: "e", at: i)
         // counts of the root node are incremented by 1
         XCTAssertEqual(1025, r.root.count)
@@ -278,7 +280,7 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(800_000, r.root.summary.chars)
         XCTAssertEqual(200_000, r.root.summary.newlines)
 
-        let i = r.index(r.startIndex, offsetBy: 400_000)
+        let i = r.utf8.index(at: 400_000)
         r.insert(contentsOf: "e", at: i)
         XCTAssertEqual(String(repeating: "foo\n", count: 100_000) + "e" + String(repeating: "foo\n", count: 100_000), String(r))
 
@@ -288,7 +290,7 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(800_001, r.root.summary.chars)
         XCTAssertEqual(200_000, r.root.summary.newlines)
 
-        let j = r.index(r.startIndex, offsetBy: 200_000)
+        let j = r.utf8.index(at: 200_000)
         r.insert(contentsOf: "\n", at: j)
         XCTAssertEqual(800_002, r.root.count)
         XCTAssertEqual(800_002, r.root.summary.utf16)
@@ -358,14 +360,88 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual("a\u{0301}", r[999])
     }
 
-//
-//    func testSummarizeCombiningCharactersSplit() {
-//        // TODO
-//    }
-//
-//    func testSummarizeCombiningCharactersHuge() {
-//        // TODO
-//    }
+    func testSummarizeCombiningCharactersSplit() {
+        let s = "e\u{0301}\n"
+        // 1024 == Chunk.maxSize + 1
+        assert(1024 % s.utf8.count == 0)
+
+        var r = Rope(String(repeating: s, count: 256))
+        XCTAssertEqual(1024, r.root.count)          // utf8len("e") == utf8len("\n") == 1; utf8len("´") == 2, so 256 * 4
+        XCTAssertEqual(768, r.root.summary.utf16)   // All codepoints are in the BMP, so no surrogate pairs. 3 codepoints/line.
+        XCTAssertEqual(768, r.root.summary.scalars) // 3 scalars/line
+        XCTAssertEqual(512, r.root.summary.chars)   // 2 chars/line
+        XCTAssertEqual(256, r.root.summary.newlines) 
+
+        XCTAssertEqual(1, r.root.height)
+        XCTAssertEqual(2, r.root.children.count)
+
+        // Again, this is brittle. The split may not happen at 511/513 bytes.
+        // This split puts a newline at the beginning of the second child.
+
+        XCTAssertEqual(511, r.root.children[0].count)
+        XCTAssertEqual(383, r.root.children[0].summary.utf16)   // "é\n"*127 + "é" => 3*127 + 2
+        XCTAssertEqual(383, r.root.children[0].summary.scalars) // Same as above because all codepoints are in the BMP
+        XCTAssertEqual(255, r.root.children[0].summary.chars)   // "é\n"*127 + "é" => 2*127 + 1
+        XCTAssertEqual(127, r.root.children[0].summary.newlines)
+
+        XCTAssertEqual(513, r.root.children[1].count)
+        XCTAssertEqual(385, r.root.children[1].summary.utf16)   // "\n" + "é\n"*128 => 1 + 3*128
+        XCTAssertEqual(385, r.root.children[1].summary.scalars) // Same as above because all codepoints are in the BMP
+        XCTAssertEqual(257, r.root.children[1].summary.chars)   // "\n" + "é\n"*128 => 1 + 2*128
+        XCTAssertEqual(129, r.root.children[1].summary.newlines)
+
+        let i = r.utf8.index(at: 511)
+        r.insert(contentsOf: "a\u{0301}", at: i)
+
+        XCTAssertEqual(1027, r.root.count)           // added 3 bytes
+        XCTAssertEqual(770, r.root.summary.utf16)    // 2 UTF-16 code units, with no surrogates
+        XCTAssertEqual(770, r.root.summary.scalars)  // 2 scalars
+        XCTAssertEqual(513, r.root.summary.chars)    // 1 char
+        XCTAssertEqual(256, r.root.summary.newlines) // no newlines
+
+        XCTAssertEqual(1, r.root.height)
+        XCTAssertEqual(2, r.root.children.count)
+
+        XCTAssertEqual(514, r.root.children[0].count)            // added 3 bytes
+        XCTAssertEqual(385, r.root.children[0].summary.utf16)    // 2 UTF-16 code units, with no surrogates
+        XCTAssertEqual(385, r.root.children[0].summary.scalars)  // 2 scalars
+        XCTAssertEqual(256, r.root.children[0].summary.chars)    // 1 char
+        XCTAssertEqual(127, r.root.children[0].summary.newlines) // no newlines
+
+        // children[1] remains the same
+        XCTAssertEqual(513, r.root.children[1].count)
+        XCTAssertEqual(385, r.root.children[1].summary.utf16)
+        XCTAssertEqual(385, r.root.children[1].summary.scalars)
+        XCTAssertEqual(257, r.root.children[1].summary.chars)
+        XCTAssertEqual(129, r.root.children[1].summary.newlines)
+    }
+
+    func testSummarizeCombiningCharactersHuge() {
+        var r = Rope(String(repeating: "e\u{0301}\n", count: 200_000))
+        XCTAssertEqual(800_000, r.root.count)            // 4 bytes/line
+        XCTAssertEqual(600_000, r.root.summary.utf16)    // 3 UTF-16 code units/line
+        XCTAssertEqual(600_000, r.root.summary.scalars)  // 3 scalars/line
+        XCTAssertEqual(400_000, r.root.summary.chars)    // 2 chars/line
+        XCTAssertEqual(200_000, r.root.summary.newlines)
+
+        let i = r.utf8.index(at: 400_000)
+        r.insert(contentsOf: "a\u{0301}", at: i)
+        XCTAssertEqual(String(repeating: "e\u{0301}\n", count: 100_000) + "a\u{0301}" + String(repeating: "e\u{0301}\n", count: 100_000), String(r))
+
+        XCTAssertEqual(800_003, r.root.count)            // added 3 bytes
+        XCTAssertEqual(600_002, r.root.summary.utf16)    // 2 UTF-16 code units, with no surrogates
+        XCTAssertEqual(600_002, r.root.summary.scalars)  // 2 scalars
+        XCTAssertEqual(400_001, r.root.summary.chars)    // 1 char
+        XCTAssertEqual(200_000, r.root.summary.newlines) // no newlines
+
+        let j = r.utf8.index(at: 200_000)
+        r.insert(contentsOf: "\n", at: j)
+        XCTAssertEqual(800_004, r.root.count)            // added 1 byte
+        XCTAssertEqual(600_003, r.root.summary.utf16)    // 1 UTF-16 code unit, with no surrogates
+        XCTAssertEqual(600_003, r.root.summary.scalars)  // 1 scalar
+        XCTAssertEqual(400_002, r.root.summary.chars)    // 1 char
+        XCTAssertEqual(200_001, r.root.summary.newlines) // 1 newline
+    }
 //
 //    func testSummarizeOutsideBMP() {
 //        // TODO
