@@ -136,6 +136,10 @@ extension Rope {
 
     struct UnicodeScalarView {
         var base: Rope
+
+        func index(roundingDown i: Index) -> Index {
+            base.index(roundingDown: i, using: .unicodeScalars)
+        }
     }
 }
 
@@ -164,7 +168,7 @@ extension Rope.UnicodeScalarView: BidirectionalCollection {
 
     subscript(position: Rope.Index) -> Unicode.Scalar {
         position.validate(for: base.root)
-        return position.readScalar()!
+        return index(roundingDown: position).readScalar()!
     }
 
     func index(before i: Rope.Index) -> Rope.Index {
