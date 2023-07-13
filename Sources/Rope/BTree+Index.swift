@@ -100,12 +100,12 @@ extension BTree {
             case .leading:
                 if position == root!.count {
                     return true
-                } else if offsetInLeaf == leaf.count {
-                    // We have to look at the next leaf to see if we have a boundary.
-                    // This is not tested, and I don't know if it works.
-                    let (next, _) = peekNextLeaf()!
-                    return metric.isBoundary(0, in: next)
                 } else {
+                    // Unlike the trailing case below, we don't have to peek at the
+                    // next leaf if offsetInLeaf == leaf.count, because offsetInLeaf
+                    // is guaranteed to be less than leaf.count unless we're at
+                    // endIndex (position == root!.count), which we've already taken
+                    // care of above.
                     return metric.isBoundary(offsetInLeaf, in: leaf)
                 }
             case .trailing:
