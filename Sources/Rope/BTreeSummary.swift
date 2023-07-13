@@ -13,6 +13,7 @@ protocol BTreeSummary {
     // A subset of AdditiveArithmetic
     static func += (lhs: inout Self, rhs: Self)
     static var zero: Self { get }
+    
     init(summarizing leaf: Leaf)
 }
 

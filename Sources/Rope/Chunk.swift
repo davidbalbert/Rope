@@ -13,7 +13,7 @@ struct Chunk: BTreeLeaf {
     static let maxSize = 1023
 
     static var zero: Chunk {
-        Chunk.init()
+        Chunk()
     }
 
     var string: String
