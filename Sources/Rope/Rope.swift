@@ -45,14 +45,14 @@ struct RopeSummary: BTreeSummary {
     }
 }
 
+extension RopeSummary: BTreeDefaultMetric {
+    static var defaultMetric: Rope.UTF8Metric { Rope.UTF8Metric() }
+}
+
 extension Rope {
     var utf16Count: Int {
         root.measure(using: .utf16)
     }
-}
-
-extension RopeSummary: BTreeDefaultMetric {
-    static var defaultMetric: Rope.UTF8Metric { Rope.UTF8Metric() }
 }
 
 extension Rope.Index {
