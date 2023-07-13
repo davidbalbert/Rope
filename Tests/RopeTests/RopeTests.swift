@@ -483,4 +483,43 @@ final class RopeTests: XCTestCase {
 
 
     }
+
+    // lines tests
+    func testShortLines() {
+        var r = Rope("foo\nbar\nbaz")
+
+        XCTAssertEqual(3, r.lines.count)
+        XCTAssertEqual("foo\n", r.lines[0])
+        XCTAssertEqual("bar\n", r.lines[1])
+        XCTAssertEqual("baz", r.lines[2])
+
+        XCTAssertEqual(["foo\n", "bar\n", "baz"], Array(r.lines))
+
+        r = Rope("foo\nbar\nbaz\n")
+
+        XCTAssertEqual(4, r.lines.count)
+        XCTAssertEqual("foo\n", r.lines[0])
+        XCTAssertEqual("bar\n", r.lines[1])
+        XCTAssertEqual("baz\n", r.lines[2])
+        XCTAssertEqual("", r.lines[3])
+
+        XCTAssertEqual(["foo\n", "bar\n", "baz\n", ""], Array(r.lines))
+    }
+
+    func testLongLines() {
+        let a = String(repeating: "a", count: 2000) + "\n"
+        let b = String(repeating: "b", count: 2000) + "\n"
+        let c = String(repeating: "c", count: 2000)
+
+        let r = Rope(a + b + c)
+
+        XCTAssert(r.root.height > 0)
+
+        XCTAssertEqual(3, r.lines.count)
+        XCTAssertEqual(a, r.lines[0])
+        XCTAssertEqual(b, r.lines[1])
+        XCTAssertEqual(c, r.lines[2])
+
+        XCTAssertEqual([a, b, c], Array(r.lines))
+    }
 }

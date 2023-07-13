@@ -175,12 +175,64 @@ extension Rope {
 
     struct LinesView {
         var base: Rope
+
+        func index(roundingDown i: Index) -> Index {
+            base.index(roundingDown: i, using: .newlines)
+        }
     }
 }
 
-// TODO: make this extension implement BidirectionalCollection
-extension Rope.LinesView {
+extension Rope.LinesView: BidirectionalCollection {
+    struct Iterator: IteratorProtocol {
+        var index: Rope.Index
+
+        mutating func next() -> String? {
+            let scalar = index.readLine()
+            index.next(using: .newlines)
+            return scalar
+        }
+    }
+
+    func makeIterator() -> Iterator {
+        Iterator(index: base.startIndex)
+    }
+
+    var startIndex: Rope.Index {
+        base.startIndex
+    }
+
+    var endIndex: Rope.Index {
+        base.endIndex
+    }
+
+    subscript(position: Rope.Index) -> String {
+        position.validate(for: base.root)
+        return index(roundingDown: position).readLine()!
+    }
+
+    func index(before i: Rope.Index) -> Rope.Index {
+        base.index(before: i, using: .newlines)
+    }
+
+    func index(after i: Rope.Index) -> Rope.Index {
+        base.index(after: i, using: .newlines)
+    }
+
+    func index(_ i: Rope.Index, offsetBy distance: Int) -> Rope.Index {
+        base.index(i, offsetBy: distance, using: .newlines)
+    }
+
+    func index(_ i: Rope.Index, offsetBy distance: Int, limitedBy limit: Rope.Index) -> Rope.Index? {
+        base.index(i, offsetBy: distance, limitedBy: limit, using: .newlines)
+    }
+
     var count: Int {
         base.root.measure(using: .newlines) + 1
+    }
+}
+
+extension Rope.LinesView {
+    subscript(offset: Int) -> String {
+        self[base.index(at: offset, using: .newlines)]
     }
 }

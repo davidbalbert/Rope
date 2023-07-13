@@ -120,6 +120,41 @@ extension Rope.Index {
         assert(s.count == 1)
         return s[s.startIndex]
     }
+
+    func readLine() -> String? {
+        guard var (chunk, offset) = read() else {
+            return nil
+        }
+
+        var end = self
+        if end.next(using: .newlines) == nil {
+            end = Rope.Index(endOf: root!)
+        }
+
+        var s = ""
+        s.reserveCapacity(end.position - position)
+
+        var i = self
+        while true {
+            let count = min(chunk.count - offset, end.position - i.position)
+
+            let endOffset = offset + count
+            assert(endOffset <= chunk.count)
+
+            let ci = chunk.string.utf8Index(at: offset)
+            let cj = chunk.string.utf8Index(at: endOffset)
+
+            s += chunk.string[ci..<cj]
+
+            if i.position + count == end.position {
+                break
+            }
+
+            (chunk, offset) = i.nextLeaf()!
+        }
+
+        return s
+    }
 }
 
 extension Rope: Sequence {
