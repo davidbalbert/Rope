@@ -218,13 +218,12 @@ final class RopeTests: XCTestCase {
         // 1024 == Chunk.maxSize + 1
         assert(1024 % s.utf8.count == 0)
 
-        // 256 == 1024/4 (s is 4 bytes in UTF-8)
         var r = Rope(String(repeating: s, count: 256))
         XCTAssertEqual(1024, r.root.count)
         XCTAssertEqual(1024, r.root.summary.utf16)
         XCTAssertEqual(1024, r.root.summary.scalars)
         XCTAssertEqual(1024, r.root.summary.chars)
-        XCTAssertEqual(1024/4, r.root.summary.newlines)
+        XCTAssertEqual(256, r.root.summary.newlines)
 
         XCTAssertEqual(1, r.root.height)
         XCTAssertEqual(2, r.root.children.count)
@@ -233,41 +232,42 @@ final class RopeTests: XCTestCase {
         // the first child ends up with 511 bytes and the second child ends up
         // with 513. We'll see how long this holds.
 
-        XCTAssertEqual(1024/2 - 1, r.root.children[0].count)
-        XCTAssertEqual(1024/2 - 1, r.root.children[0].summary.utf16)
-        XCTAssertEqual(1024/2 - 1, r.root.children[0].summary.scalars)
-        XCTAssertEqual(1024/2 - 1, r.root.children[0].summary.chars)
-        XCTAssertEqual(256/2 - 1, r.root.children[0].summary.newlines)
+        XCTAssertEqual(511, r.root.children[0].count)
+        XCTAssertEqual(511, r.root.children[0].summary.utf16)
+        XCTAssertEqual(511, r.root.children[0].summary.scalars)
+        XCTAssertEqual(511, r.root.children[0].summary.chars)
+        XCTAssertEqual(127, r.root.children[0].summary.newlines)
 
-        XCTAssertEqual(1024/2 + 1, r.root.children[1].count)
-        XCTAssertEqual(1024/2 + 1, r.root.children[1].summary.utf16)
-        XCTAssertEqual(1024/2 + 1, r.root.children[1].summary.scalars)
-        XCTAssertEqual(1024/2 + 1, r.root.children[1].summary.chars)
-        XCTAssertEqual(256/2 + 1, r.root.children[1].summary.newlines)
+        XCTAssertEqual(513, r.root.children[1].count)
+        XCTAssertEqual(513, r.root.children[1].summary.utf16)
+        XCTAssertEqual(513, r.root.children[1].summary.scalars)
+        XCTAssertEqual(513, r.root.children[1].summary.chars)
+        XCTAssertEqual(129, r.root.children[1].summary.newlines)
 
-        let i = r.index(r.startIndex, offsetBy: 1024/2 - 1)
+        let i = r.index(r.startIndex, offsetBy: 511)
         r.insert(contentsOf: "e", at: i)
-        XCTAssertEqual(1024 + 1, r.root.count)
-        XCTAssertEqual(1024 + 1, r.root.summary.utf16)
-        XCTAssertEqual(1024 + 1, r.root.summary.chars)
+        // counts of the root node are incremented by 1
+        XCTAssertEqual(1025, r.root.count)
+        XCTAssertEqual(1025, r.root.summary.utf16)
+        XCTAssertEqual(1025, r.root.summary.chars)
         XCTAssertEqual(256, r.root.summary.newlines)
 
         XCTAssertEqual(1, r.root.height)
         XCTAssertEqual(2, r.root.children.count)
 
         // children[0] now has one more byte than it used to
-        XCTAssertEqual(1024/2 - 1 + 1, r.root.children[0].count)
-        XCTAssertEqual(1024/2 - 1 + 1, r.root.children[0].summary.utf16)
-        XCTAssertEqual(1024/2 - 1 + 1, r.root.children[0].summary.scalars)
-        XCTAssertEqual(1024/2 - 1 + 1, r.root.children[0].summary.chars)
-        XCTAssertEqual(256/2 - 1, r.root.children[0].summary.newlines)
+        XCTAssertEqual(512, r.root.children[0].count)
+        XCTAssertEqual(512, r.root.children[0].summary.utf16)
+        XCTAssertEqual(512, r.root.children[0].summary.scalars)
+        XCTAssertEqual(512, r.root.children[0].summary.chars)
+        XCTAssertEqual(127, r.root.children[0].summary.newlines)
 
         // children[1] remains the same
-        XCTAssertEqual(1024/2 + 1, r.root.children[1].count)
-        XCTAssertEqual(1024/2 + 1, r.root.children[1].summary.utf16)
-        XCTAssertEqual(1024/2 + 1, r.root.children[1].summary.scalars)
-        XCTAssertEqual(1024/2 + 1, r.root.children[1].summary.chars)
-        XCTAssertEqual(256/2 + 1, r.root.children[1].summary.newlines)
+        XCTAssertEqual(513, r.root.children[1].count)
+        XCTAssertEqual(513, r.root.children[1].summary.utf16)
+        XCTAssertEqual(513, r.root.children[1].summary.scalars)
+        XCTAssertEqual(513, r.root.children[1].summary.chars)
+        XCTAssertEqual(129, r.root.children[1].summary.newlines)
     }
 
     func testSummarizeASCIIHuge() {
