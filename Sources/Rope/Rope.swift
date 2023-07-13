@@ -105,6 +105,7 @@ extension Rope.Index {
         // the character is split across chunks
         var s = chunk.string[chunk.lastBreak...]
 
+        // TODO: this is wrong. A character may span more than one leaf. We need a loop here.
         guard let (nextChunk, nextOffset) = peekNextLeaf() else {
             // We have an incomplete grapheme cluster at the end of the
             // the rope. This is uncommon. For example, imagine a rope
@@ -178,19 +179,10 @@ extension Rope: Collection {
     var count: Int {
         root.measure(using: .characters)
     }
-
-    var startIndex: Index {
-        Index(startOf: root)
-    }
-    
-    var endIndex: Index {
-        Index(endOf: root)
-    }
     
     subscript(position: Index) -> Character {
         position.validate(for: root)
-        let position = index(roundingDown: position)
-        return position.readChar()!
+        return index(roundingDown: position).readChar()!
     }
 
     subscript(bounds: Range<Index>) -> Rope {

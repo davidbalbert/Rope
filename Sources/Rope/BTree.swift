@@ -47,6 +47,14 @@ struct BTree<Summary> where Summary: BTreeSummary {
     var isEmpty: Bool {
         root.isEmpty
     }
+
+    var startIndex: Index {
+        Index(startOf: root)
+    }
+
+    var endIndex: Index {
+        Index(endOf: root)
+    }
 }
 
 extension BTree where Summary: BTreeDefaultMetric {

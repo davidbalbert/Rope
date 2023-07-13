@@ -86,7 +86,7 @@ extension Rope.UTF8View: BidirectionalCollection {
     }
 
     func makeIterator() -> Iterator {
-        Iterator(index: Index(startOf: base.root))
+        Iterator(index: base.startIndex)
     }
 
     var startIndex: Rope.Index {
@@ -155,7 +155,7 @@ extension Rope.UnicodeScalarView: BidirectionalCollection {
     }
 
     func makeIterator() -> Iterator {
-        Iterator(index: Index(startOf: base.root))
+        Iterator(index: base.startIndex)
     }
 
     var startIndex: Rope.Index {
