@@ -157,10 +157,6 @@ struct Chunk: BTreeLeaf {
         return count
     }
 
-    func isValidUTF16Index(_ i: String.Index) -> Bool {
-        i.samePosition(in: string.utf16) != nil
-    }
-
     func isValidUnicodeScalarIndex(_ i: String.Index) -> Bool {
         i.samePosition(in: string.unicodeScalars) != nil
     }

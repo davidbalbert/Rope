@@ -45,6 +45,12 @@ struct RopeSummary: BTreeSummary {
     }
 }
 
+extension Rope {
+    var utf16Count: Int {
+        root.measure(using: .utf16)
+    }
+}
+
 extension RopeSummary: BTreeDefaultMetric {
     static var defaultMetric: Rope.UTF8Metric { Rope.UTF8Metric() }
 }
@@ -60,21 +66,6 @@ extension Rope.Index {
         }
 
         return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
-    }
-
-    func readUTF16() -> UTF16.CodeUnit? {
-        guard let (chunk, offset) = read() else {
-            return nil
-        }
-
-        if offset >= chunk.count {
-            return nil
-        }
-
-        let i = chunk.string.utf8Index(at: offset)
-        assert(chunk.isValidUTF16Index(i))
-
-        return chunk.string.utf16[i]
     }
 
     func readScalar() -> Unicode.Scalar? {
@@ -128,12 +119,6 @@ extension Rope.Index {
 
         assert(s.count == 1)
         return s[s.startIndex]
-    }
-}
-
-extension Rope.Index: CustomStringConvertible {
-    var description: String {
-        "\(position)[utf8]"
     }
 }
 
@@ -433,19 +418,26 @@ extension BTreeMetric<RopeSummary> where Self == Rope.UTF8Metric {
     static var utf8: Rope.UTF8Metric { Rope.UTF8Metric() }
 }
 
+// Rope doesn't have a true UTF-16 view like String does. Instead the
+// UTF16Metric is mostly useful for counting UTF-16 code units. Its
+// prev and next operate the same as UnicodeScalarMetric. Next() and prev()
+// will "skip" trailing surrogates, jumping to the next Unicode scalar
+// boundary. "Skip" is in quotes because there are not actually any leading
+// or trailing surrogates in Rope's storage. It's just Unicode scalars that
+// are encoded as UTF-8.
 extension BTree {
     struct UTF16Metric: BTreeMetric {
         func measure(summary: RopeSummary, count: Int) -> Int {
             summary.utf16
         }
-        
+
         func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
             let startIndex = chunk.string.startIndex
 
             let i = chunk.string.utf16Index(at: measuredUnits)
             return chunk.string.utf8.distance(from: startIndex, to: i)
         }
-        
+
         func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
             let startIndex = chunk.string.startIndex
             let i = chunk.string.utf8Index(at: baseUnits)
@@ -455,7 +447,7 @@ extension BTree {
 
         func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
             let i = chunk.string.utf8Index(at: offset)
-            return chunk.isValidUTF16Index(i)
+            return chunk.isValidUnicodeScalarIndex(i)
         }
 
         func prev(_ offset: Int, in chunk: Chunk) -> Int? {
@@ -464,7 +456,7 @@ extension BTree {
             let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
 
-            let target = chunk.string.utf16.index(before: current)
+            let target = chunk.string.unicodeScalars.index(before: current)
             return chunk.string.utf8.distance(from: startIndex, to: target)
         }
 
@@ -474,7 +466,7 @@ extension BTree {
             let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
 
-            let target = chunk.string.utf16.index(after: current)
+            let target = chunk.string.unicodeScalars.index(after: current)
             return chunk.string.utf8.distance(from: startIndex, to: target)
         }
 
