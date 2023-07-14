@@ -54,7 +54,6 @@ extension RopeSummary: BTreeDefaultMetric {
 }
 
 
-// MARK: - Chunk
 
 struct Chunk: BTreeLeaf {
     // measured in base units
