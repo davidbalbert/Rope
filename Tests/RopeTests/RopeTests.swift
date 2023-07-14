@@ -537,26 +537,109 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(0, r.root.summary.newlines)
     }
 
-//
-//    func testSummarizeOutsideBMPSplit() {
-//        // TODO
-//    }
-//
-//    func testSummarizeOutsideBMPHuge() {
-//        // TODO
-//    }
-//
-//    func testSummarizeMultiCodepointGraphemes() {
-//        // TODO
-//    }
-//
-//    func testSummarizeMultiCodepointGraphemesSplit() {
-//        // TODO
-//    }
-//
-//    func testSummarizeMultiCodepointGraphemesHuge() {
-//        // TODO
-//    }
+    func testSummarizeOutsideBMPSplit() {
+        let s = "🙋" // U+1F64B HAPPY PERSON RAISING ONE HAND
+        // 1024 == Chunk.maxSize + 1
+        assert(1024 % s.utf8.count == 0)
+
+        var r = Rope(String(repeating: s, count: 256))
+        XCTAssertEqual(1024, r.root.count)
+        XCTAssertEqual(512, r.root.summary.utf16)
+        XCTAssertEqual(256, r.root.summary.scalars)
+        XCTAssertEqual(256, r.root.summary.chars)
+        XCTAssertEqual(0, r.root.summary.newlines)
+
+        XCTAssertEqual(1, r.root.height)
+        XCTAssertEqual(2, r.root.children.count)
+
+        // This time, the split happens at 512/512 because there are
+        // no newlines.
+
+        XCTAssertEqual(512, r.root.children[0].count)
+        XCTAssertEqual(256, r.root.children[0].summary.utf16)
+        XCTAssertEqual(128, r.root.children[0].summary.scalars)
+        XCTAssertEqual(128, r.root.children[0].summary.chars)
+        XCTAssertEqual(0, r.root.children[0].summary.newlines)
+
+        XCTAssertEqual(512, r.root.children[1].count)
+        XCTAssertEqual(256, r.root.children[1].summary.utf16)
+        XCTAssertEqual(128, r.root.children[1].summary.scalars)
+        XCTAssertEqual(128, r.root.children[1].summary.chars)
+        XCTAssertEqual(0, r.root.children[1].summary.newlines)
+
+        let i = r.utf8.index(at: 512)
+        r.insert(contentsOf: "🏻", at: i) // U+1F3FB EMOJI MODIFIER FITZPATRICK TYPE-1
+
+        XCTAssertEqual(1028, r.root.count)          // added 4 bytes
+        XCTAssertEqual(514, r.root.summary.utf16)   // 2 UTF-16 code units (one surrogate pair)
+        XCTAssertEqual(257, r.root.summary.scalars) // 1 scalar
+        XCTAssertEqual(256, r.root.summary.chars)   // 0 chars (combined with previous)
+        XCTAssertEqual(0, r.root.summary.newlines)  // 0 newlines
+
+        XCTAssertEqual(1, r.root.height)
+        XCTAssertEqual(2, r.root.children.count)
+
+        XCTAssertEqual(516, r.root.children[0].count)           // added 4 bytes
+        XCTAssertEqual(258, r.root.children[0].summary.utf16)   // 2 UTF-16 code units (one surrogate pair)
+        XCTAssertEqual(129, r.root.children[0].summary.scalars) // 1 scalar
+        XCTAssertEqual(128, r.root.children[0].summary.chars)   // 0 chars (combined with previous)
+        XCTAssertEqual(0, r.root.children[0].summary.newlines)  // 0 newlines
+
+        // children[1] remains the same
+        XCTAssertEqual(512, r.root.children[1].count)
+        XCTAssertEqual(256, r.root.children[1].summary.utf16)
+        XCTAssertEqual(128, r.root.children[1].summary.scalars)
+        XCTAssertEqual(128, r.root.children[1].summary.chars)
+        XCTAssertEqual(0, r.root.children[1].summary.newlines)
+    }
+
+    func testSummarizeOutsideBMPHuge() {
+        var r = Rope(String(repeating: "🙋", count: 200_000))
+        XCTAssertEqual(800_000, r.root.count)
+        XCTAssertEqual(400_000, r.root.summary.utf16)
+        XCTAssertEqual(200_000, r.root.summary.scalars)
+        XCTAssertEqual(200_000, r.root.summary.chars)
+        XCTAssertEqual(0, r.root.summary.newlines)
+
+        let i = r.utf8.index(at: 400_000)
+        r.insert(contentsOf: "🏻", at: i) // U+1F3FB EMOJI MODIFIER FITZPATRICK TYPE-1
+        XCTAssertEqual(String(repeating: "🙋", count: 99_999) + "🙋🏻" + String(repeating: "🙋", count: 100_000), String(r))
+
+        XCTAssertEqual(800_004, r.root.count)           // added 4 bytes
+        XCTAssertEqual(400_002, r.root.summary.utf16)   // 2 UTF-16 code units (one surrogate pair)
+        XCTAssertEqual(200_001, r.root.summary.scalars) // 1 scalar
+        XCTAssertEqual(200_000, r.root.summary.chars)   // 0 chars (combined with previous)
+        XCTAssertEqual(0, r.root.summary.newlines)      // 0 newlines
+    }
+
+    func testSummaryizeRegionalIndicators() {
+        var r = Rope("🇺🇸🇺🇸🇺🇸🇺🇸🇺🇸") // 5 * [U+1F1FA REGIONAL INDICATOR SYMBOL LETTER U, U+1F1F8 REGIONAL INDICATOR SYMBOL LETTER S]
+        XCTAssertEqual(5, r.count)
+        XCTAssertEqual(10, r.unicodeScalars.count)
+        XCTAssertEqual(20, r.utf16Count)
+        XCTAssertEqual(40, r.utf8.count)
+        XCTAssertEqual(1, r.lines.count)
+
+        var i = r.utf8.index(at: 8)
+        r.insert(contentsOf: "🇨🇦", at: i) // [U+1F1E8 REGIONAL INDICATOR SYMBOL LETTER C, U+1F1E6 REGIONAL INDICATOR SYMBOL LETTER A]
+        XCTAssertEqual("🇺🇸🇨🇦🇺🇸🇺🇸🇺🇸🇺🇸", String(r))
+
+        XCTAssertEqual(6, r.count)
+        XCTAssertEqual(12, r.unicodeScalars.count)
+        XCTAssertEqual(24, r.utf16Count)
+        XCTAssertEqual(48, r.utf8.count)
+        XCTAssertEqual(1, r.lines.count)
+
+        i = r.utf8.index(at: 0)
+        r.insert(contentsOf: "🇻", at: i) // U+1F1FB REGIONAL INDICATOR SYMBOL LETTER V
+        XCTAssertEqual("🇻🇺🇸🇨🇦🇺🇸🇺🇸🇺🇸🇺🇸", String(r))
+
+        XCTAssertEqual(7, r.count)
+        XCTAssertEqual(13, r.unicodeScalars.count)
+        XCTAssertEqual(26, r.utf16Count)
+        XCTAssertEqual(52, r.utf8.count)
+        XCTAssertEqual(1, r.lines.count)
+    }
 
 
     // Index tests
