@@ -249,7 +249,7 @@ extension BTree.Node where Summary: BTreeDefaultMetric {
         convert(offset, from: Summary.defaultMetric, to: metric)
     }
 
-    func offset<M>(of measured: Int, measuredIn metric: M) -> Int where M: BTreeMetric<Summary> {
+    func countBaseUnits<M>(of measured: Int, measuredIn metric: M) -> Int where M: BTreeMetric<Summary> {
         convert(measured, from: metric, to: Summary.defaultMetric)
     }
 }

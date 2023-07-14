@@ -97,7 +97,7 @@ extension BTree where Summary: BTreeDefaultMetric {
         var i = i
         let m = root.count(metric, upThrough: i.position)
         precondition(m+distance >= 0 && m+distance <= root.measure(using: metric), "Index out of bounds")
-        let pos = root.offset(of: m + distance, measuredIn: metric)
+        let pos = root.countBaseUnits(of: m + distance, measuredIn: metric)
         i.set(pos)
 
         return i
@@ -116,7 +116,7 @@ extension BTree where Summary: BTreeDefaultMetric {
         var i = i
         let m = root.count(metric, upThrough: i.position)
         precondition(m+distance >= 0 && m+distance <= root.measure(using: metric), "Index out of bounds")
-        let pos = root.offset(of: m + distance, measuredIn: metric)
+        let pos = root.countBaseUnits(of: m + distance, measuredIn: metric)
         i.set(pos)
 
         return i
@@ -131,7 +131,7 @@ extension BTree where Summary: BTreeDefaultMetric {
     }
 
     func index<M>(at offset: Int, using metric: M) -> Index where M: BTreeMetric<Summary> {
-        let count = root.offset(of: offset, measuredIn: metric)
+        let count = root.countBaseUnits(of: offset, measuredIn: metric)
         return Index(offsetBy: count, in: root)
     }
 }
