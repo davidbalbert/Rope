@@ -119,6 +119,17 @@ extension BTree {
                 } else {
                     return metric.isBoundary(offsetInLeaf, in: leaf)
                 }
+            case .atomic:
+                if position == 0 || position == root!.count {
+                    return true
+                } else if offsetInLeaf == 0 {
+                    // We have to look to the previous leaf to
+                    // see if we have a boundary.
+                    let (prev, _) = peekPrevLeaf()!
+                    return metric.isBoundary(prev.count, in: prev)
+                } else {
+                    return metric.isBoundary(offsetInLeaf, in: leaf)
+                }
             }
         }
 
@@ -240,8 +251,8 @@ extension BTree {
                 return position
             }
 
-            if offsetOfLeaf == 0 && metric.type == .trailing {
-                // Didn't find a boundary, but trailing metrics have
+            if offsetOfLeaf == 0 && (metric.type == .trailing || metric.type == .atomic) {
+                // Didn't find a boundary, but trailing and atomic metrics have
                 // a boundary at startIndex.
                 position = 0
                 return position
@@ -258,8 +269,8 @@ extension BTree {
 
             let newOffsetInLeaf = metric.next(offsetInLeaf, in: leaf!)
 
-            if newOffsetInLeaf == nil && isLastLeaf && metric.type == .leading {
-                // Didn't find a boundary, but leading metrics have a
+            if newOffsetInLeaf == nil && isLastLeaf && (metric.type == .leading || metric.type == .atomic) {
+                // Didn't find a boundary, but leading and atomic metrics have a
                 // boundary at endIndex.
                 position = offsetOfLeaf + leaf!.count
                 return position

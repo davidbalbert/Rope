@@ -447,7 +447,7 @@ extension BTree {
         }
         
         var type: Rope.MetricType {
-            .trailing
+            .atomic
         }
     }
 }
@@ -513,7 +513,7 @@ extension BTree {
         }
         
         var type: Rope.MetricType {
-            .trailing
+            .atomic
         }
     }
 }
@@ -553,7 +553,10 @@ extension BTree {
             let startIndex = chunk.string.startIndex
             let current = chunk.string.utf8Index(at: offset)
 
-            let target = chunk.string.unicodeScalars.index(before: current)
+            var target = chunk.string.unicodeScalars._index(roundingDown: current)
+            if target == current {
+                target = chunk.string.unicodeScalars.index(before: target)
+            }
             return chunk.string.utf8.distance(from: startIndex, to: target)
         }
         
@@ -572,7 +575,7 @@ extension BTree {
         }
         
         var type: Rope.MetricType {
-            .trailing
+            .atomic
         }
     }
 }
@@ -658,7 +661,7 @@ extension BTree {
         }
         
         var type: Rope.MetricType {
-            .trailing
+            .atomic
         }
     }
 }

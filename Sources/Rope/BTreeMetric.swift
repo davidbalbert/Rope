@@ -11,6 +11,7 @@ extension BTree {
     enum MetricType {
         case leading
         case trailing
+        case atomic // both leading and trailing
     }
 }
 
