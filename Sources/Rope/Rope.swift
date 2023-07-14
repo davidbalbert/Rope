@@ -459,7 +459,7 @@ extension BTree {
             false
         }
         
-        var type: Rope.MetricType {
+        var type: BTreeMetricType {
             .atomic
         }
     }
@@ -528,7 +528,7 @@ extension BTree {
             false
         }
         
-        var type: Rope.MetricType {
+        var type: BTreeMetricType {
             .atomic
         }
     }
@@ -590,7 +590,7 @@ extension BTree {
             false
         }
         
-        var type: Rope.MetricType {
+        var type: BTreeMetricType {
             .atomic
         }
     }
@@ -669,7 +669,7 @@ extension BTree {
             true
         }
         
-        var type: Rope.MetricType {
+        var type: BTreeMetricType {
             .atomic
         }
     }
@@ -736,7 +736,7 @@ extension BTree {
             true
         }
         
-        var type: Rope.MetricType {
+        var type: BTreeMetricType {
             .trailing
         }
     }
