@@ -52,8 +52,8 @@ struct Chunk: BTreeLeaf {
         self.breaker = Rope.GraphemeBreaker()
     }
 
-    init(_ elements: some StringProtocol, breaker b: inout Rope.GraphemeBreaker) {
-        let s = String(elements)
+    init(_ substring: Substring, breaker b: inout Rope.GraphemeBreaker) {
+        let s = String(substring)
         assert(s.isContiguousUTF8)
         assert(s.utf8.count <= Chunk.maxSize)
 
@@ -78,7 +78,7 @@ struct Chunk: BTreeLeaf {
             string = String(string.unicodeScalars[..<i])
 
             (prefixCount, suffixCount) = Chunk.calculateBreaks(in: string, using: &b)
-            return Chunk(rest, breaker: &b)
+            return Chunk(rest[...], breaker: &b)
         }
     }
 
