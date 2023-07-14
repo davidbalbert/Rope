@@ -23,7 +23,7 @@ protocol BTreeMetric<Summary> {
     func convertFromBaseUnits(_ baseUnits: Int, in leaf: Summary.Leaf) -> Int
     func isBoundary(_ offset: Int, in leaf: Summary.Leaf) -> Bool
 
-    // Never called with offset == 0
+    // Prev is never called with offset == 0
     func prev(_ offset: Int, in leaf: Summary.Leaf) -> Int?
     func next(_ offset: Int, in leaf: Summary.Leaf) -> Int?
 
