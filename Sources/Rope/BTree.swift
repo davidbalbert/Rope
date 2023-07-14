@@ -123,6 +123,8 @@ extension BTree where Summary: BTreeDefaultMetric {
     }
 
     func index<M>(roundingDown i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
+        i.assertValid(for: root)
+        
         if i.isBoundary(in: metric) {
             return i
         }
