@@ -7,6 +7,9 @@
 
 import Foundation
 
+// MARK: - Core data structures
+
+
 // a rope made out of a B-tree
 // internal nodes are order 8: 4...8 children (see BTree.swift)
 // leaf nodes are order 1024: 511..<1024 elements (characters), unless it's root, then 0..<1024 (see Chunk.swift)
@@ -52,7 +55,6 @@ struct RopeSummary: BTreeSummary {
 extension RopeSummary: BTreeDefaultMetric {
     static var defaultMetric: Rope.UTF8Metric { Rope.UTF8Metric() }
 }
-
 
 
 struct Chunk: BTreeLeaf {
@@ -177,7 +179,513 @@ fileprivate func calculateBreaks(in string: String, using breaker: inout Rope.Gr
 }
 
 
+// MARK: - Metrics
+
+
+// It would be better if these metrics were nested inside Rope instead
+// of BTree, but that causes problems with LLDB – I get errors like
+// "error: cannot find 'metric' in scope" in response to 'p metric'.
+//
+// Ditto for using `some BTreeMetric<Summary>` instead of introducing
+// a generic type and constrainting it to BTreeMetric<Summary>.
+extension BTree {
+    // The base metric, which measures UTF-8 code units.
+    struct UTF8Metric: BTreeMetric {
+        func measure(summary: RopeSummary, count: Int) -> Int {
+            count
+        }
+
+        func convertToBaseUnits(_ measuredUnits: Int, in leaf: Chunk) -> Int {
+            measuredUnits
+        }
+
+        func convertFromBaseUnits(_ baseUnits: Int, in leaf: Chunk) -> Int {
+            baseUnits
+        }
+
+        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
+            true
+        }
+
+        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset > 0)
+            return offset - 1
+        }
+
+        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset < chunk.count)
+            return offset + 1
+        }
+
+        var canFragment: Bool {
+            false
+        }
+
+        var type: BTreeMetricType {
+            .atomic
+        }
+    }
+}
+
+extension BTreeMetric<RopeSummary> where Self == Rope.UTF8Metric {
+    static var utf8: Rope.UTF8Metric { Rope.UTF8Metric() }
+}
+
+// Rope doesn't have a true UTF-16 view like String does. Instead the
+// UTF16Metric is mostly useful for counting UTF-16 code units. Its
+// prev and next operate the same as UnicodeScalarMetric. Next() and prev()
+// will "skip" trailing surrogates, jumping to the next Unicode scalar
+// boundary. "Skip" is in quotes because there are not actually any leading
+// or trailing surrogates in Rope's storage. It's just Unicode scalars that
+// are encoded as UTF-8.
+extension BTree {
+    struct UTF16Metric: BTreeMetric {
+        func measure(summary: RopeSummary, count: Int) -> Int {
+            summary.utf16
+        }
+
+        func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
+            let startIndex = chunk.string.startIndex
+
+            let i = chunk.string.utf16Index(at: measuredUnits)
+            return chunk.string.utf8.distance(from: startIndex, to: i)
+        }
+
+        func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+            let startIndex = chunk.string.startIndex
+            let i = chunk.string.utf8Index(at: baseUnits)
+
+            return chunk.string.utf16.distance(from: startIndex, to: i)
+        }
+
+        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
+            let i = chunk.string.utf8Index(at: offset)
+            return chunk.isValidUnicodeScalarIndex(i)
+        }
+
+        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset > 0)
+
+            let startIndex = chunk.string.startIndex
+            let current = chunk.string.utf8Index(at: offset)
+
+            var target = chunk.string.unicodeScalars._index(roundingDown: current)
+            if target == current {
+                target = chunk.string.unicodeScalars.index(before: target)
+            }
+            return chunk.string.utf8.distance(from: startIndex, to: target)
+        }
+
+        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset < chunk.count)
+
+            let startIndex = chunk.string.startIndex
+            let current = chunk.string.utf8Index(at: offset)
+
+            let target = chunk.string.unicodeScalars.index(after: current)
+            return chunk.string.utf8.distance(from: startIndex, to: target)
+        }
+
+        var canFragment: Bool {
+            false
+        }
+
+        var type: BTreeMetricType {
+            .atomic
+        }
+    }
+}
+
+extension BTreeMetric<RopeSummary> where Self == Rope.UTF16Metric {
+    static var utf16: Rope.UTF16Metric { Rope.UTF16Metric() }
+}
+
+extension BTree {
+    struct UnicodeScalarMetric: BTreeMetric {
+        func measure(summary: RopeSummary, count: Int) -> Int {
+            summary.scalars
+        }
+
+        func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
+            let startIndex = chunk.string.startIndex
+
+            let i = chunk.string.unicodeScalarIndex(at: measuredUnits)
+            return chunk.string.utf8.distance(from: startIndex, to: i)
+        }
+
+        func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+            let startIndex = chunk.string.startIndex
+            let i = chunk.string.utf8Index(at: baseUnits)
+
+            return chunk.string.unicodeScalars.distance(from: startIndex, to: i)
+        }
+
+        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
+            let i = chunk.string.utf8Index(at: offset)
+            return chunk.isValidUnicodeScalarIndex(i)
+        }
+
+        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset > 0)
+
+            let startIndex = chunk.string.startIndex
+            let current = chunk.string.utf8Index(at: offset)
+
+            var target = chunk.string.unicodeScalars._index(roundingDown: current)
+            if target == current {
+                target = chunk.string.unicodeScalars.index(before: target)
+            }
+            return chunk.string.utf8.distance(from: startIndex, to: target)
+        }
+
+        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset < chunk.count)
+
+            let startIndex = chunk.string.startIndex
+            let current = chunk.string.utf8Index(at: offset)
+
+            let target = chunk.string.unicodeScalars.index(after: current)
+            return chunk.string.utf8.distance(from: startIndex, to: target)
+        }
+
+        var canFragment: Bool {
+            false
+        }
+
+        var type: BTreeMetricType {
+            .atomic
+        }
+    }
+}
+
+extension BTreeMetric<RopeSummary> where Self == Rope.UnicodeScalarMetric {
+    static var unicodeScalars: Rope.UnicodeScalarMetric { Rope.UnicodeScalarMetric() }
+}
+
+extension BTree {
+    struct CharacterMetric: BTreeMetric {
+        func measure(summary: RopeSummary, count: Int) -> Int {
+            summary.chars
+        }
+
+        func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
+            assert(measuredUnits <= chunk.characters.count)
+
+            let startIndex = chunk.characters.startIndex
+            let i = chunk.characters.index(startIndex, offsetBy: measuredUnits)
+
+            assert(chunk.isValidCharacterIndex(i))
+
+            return chunk.prefixCount + chunk.string.utf8.distance(from: startIndex, to: i)
+        }
+
+        func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+            let startIndex = chunk.characters.startIndex
+            let i = chunk.string.utf8Index(at: baseUnits)
+
+            return chunk.characters.distance(from: startIndex, to: i)
+        }
+
+        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
+            if offset < chunk.prefixCount || offset > chunk.count - chunk.suffixCount {
+                return false
+            }
+
+            let i = chunk.string.utf8Index(at: offset)
+            return chunk.isValidCharacterIndex(i)
+        }
+
+        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset > 0)
+
+            let startIndex = chunk.string.startIndex
+            let current = chunk.string.utf8Index(at: offset)
+
+            if current <= chunk.firstBreak {
+                return nil
+            }
+
+            var target = chunk.string._index(roundingDown: current)
+            if target == current {
+                target = chunk.string.index(before: target)
+            }
+
+            return chunk.string.utf8.distance(from: startIndex, to: target)
+        }
+
+        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset < chunk.count)
+
+            let startIndex = chunk.string.startIndex
+            let current = chunk.string.utf8Index(at: offset)
+
+            if current >= chunk.lastBreak {
+                return nil
+            }
+
+            let target = chunk.string.index(after: current)
+            return chunk.string.utf8.distance(from: startIndex, to: target)
+        }
+
+        var canFragment: Bool {
+            true
+        }
+
+        var type: BTreeMetricType {
+            .atomic
+        }
+    }
+}
+
+extension BTreeMetric<RopeSummary> where Self == Rope.CharacterMetric {
+    static var characters: Rope.CharacterMetric { Rope.CharacterMetric() }
+}
+
+extension BTree {
+    struct NewlinesMetric: BTreeMetric {
+        func measure(summary: RopeSummary, count: Int) -> Int {
+            summary.newlines
+        }
+
+        func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
+            let nl = UInt8(ascii: "\n")
+
+            var offset = 0
+            var count = 0
+            chunk.string.withExistingUTF8 { buf in
+                while count < measuredUnits {
+                    offset = buf[offset...].firstIndex(of: nl)! + 1
+                    count += 1
+                }
+            }
+
+            return offset
+        }
+
+        func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
+            return chunk.string.withExistingUTF8 { buf in
+                countNewlines(in: buf[..<baseUnits])
+            }
+        }
+
+        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
+            assert(offset > 0)
+
+            return chunk.string.withExistingUTF8 { buf in
+                buf[offset - 1] == UInt8(ascii: "\n")
+            }
+        }
+
+        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset > 0)
+
+            let nl = UInt8(ascii: "\n")
+            return chunk.string.withExistingUTF8 { buf in
+                buf[..<(offset - 1)].lastIndex(of: nl).map { $0 + 1 }
+            }
+        }
+
+        func next(_ offset: Int, in chunk: Chunk) -> Int? {
+            assert(offset < chunk.count)
+
+            let nl = UInt8(ascii: "\n")
+            return chunk.string.withExistingUTF8 { buf in
+                buf[offset...].firstIndex(of: nl).map { $0 + 1 }
+            }
+        }
+
+        var canFragment: Bool {
+            true
+        }
+
+        var type: BTreeMetricType {
+            .trailing
+        }
+    }
+}
+
+extension BTreeMetric<RopeSummary> where Self == Rope.NewlinesMetric {
+    static var newlines: Rope.NewlinesMetric { Rope.NewlinesMetric() }
+}
+
+
+// MARK: - Builder additions
+
+
+extension Rope.Builder {
+    mutating func push(string: some Sequence<Character>, breaker: inout Rope.GraphemeBreaker) {
+        var string = String(string)
+        string.makeContiguousUTF8()
+
+        var i = string.startIndex
+
+        while i < string.endIndex {
+            let n = string.utf8.distance(from: i, to: string.endIndex)
+
+            let end: String.Index
+            if n <= Chunk.maxSize {
+                end = string.endIndex
+            } else {
+                end = boundaryForBulkInsert(string[i...])
+            }
+
+            push(leaf: Chunk(string[i..<end], breaker: &breaker))
+            i = end
+        }
+    }
+}
+
+
+fileprivate func boundaryForBulkInsert(_ s: Substring) -> String.Index {
+    boundary(for: s, startingAt: Chunk.minSize)
+}
+
+fileprivate func boundaryForMerge(_ s: Substring) -> String.Index {
+    // for the smallest chunk that needs splitting (n = maxSize + 1 = 1024):
+    // minSplit = max(511, 1024 - 1023) = max(511, 1) = 511
+    // maxSplit = min(1023, 1024 - 511) = min(1023, 513) = 513
+    boundary(for: s, startingAt: max(Chunk.minSize, s.utf8.count - Chunk.maxSize))
+}
+
+fileprivate func boundary(for s: Substring, startingAt minSplit: Int) -> String.Index {
+    let maxSplit = min(Chunk.maxSize, s.utf8.count - Chunk.minSize)
+
+    let nl = UInt8(ascii: "\n")
+    let lineBoundary = s.withExistingUTF8 { buf in
+        buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
+    }
+
+    let offset = lineBoundary ?? maxSplit
+    let i = s.utf8Index(at: offset)
+    return s.unicodeScalars._index(roundingDown: i)
+}
+
+
+// MARK: - Index additions
+
+
+extension Rope.Index {
+    func readUTF8() -> UTF8.CodeUnit? {
+        guard let (chunk, offset) = read() else {
+            return nil
+        }
+
+        if offset == chunk.count {
+            // We're at the end of the rope
+            return nil
+        }
+
+        return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
+    }
+
+    func readScalar() -> Unicode.Scalar? {
+        guard let (chunk, offset) = read() else {
+            return nil
+        }
+
+        if offset == chunk.count {
+            // We're at the end of the rope
+            return nil
+        }
+
+        let i = chunk.string.utf8Index(at: offset)
+        assert(chunk.isValidUnicodeScalarIndex(i))
+
+        return chunk.string.unicodeScalars[i]
+    }
+
+    func readChar() -> Character? {
+        guard var (chunk, offset) = read() else {
+            return nil
+        }
+
+        if offset == chunk.count {
+            // We're at the end of the rope
+            return nil
+        }
+
+        let ci = chunk.string.utf8Index(at: offset)
+
+        assert(ci >= chunk.firstBreak && ci <= chunk.lastBreak)
+        assert(chunk.isValidCharacterIndex(ci))
+
+        if ci < chunk.lastBreak {
+            // the common case, the full character is in this chunk
+            return chunk.string[ci]
+        }
+
+        var end = self
+        if end.next(using: .characters) == nil {
+            end = Rope.Index(endOf: root!)
+        }
+
+        var s = ""
+        s.reserveCapacity(end.position - position)
+
+        var i = self
+        while true {
+            let count = min(chunk.count - offset, end.position - i.position)
+
+            let endOffset = offset + count
+            assert(endOffset <= chunk.count)
+
+            let cstart = chunk.string.utf8Index(at: offset)
+            let cend = chunk.string.utf8Index(at: endOffset)
+
+            s += chunk.string[cstart..<cend]
+
+            if i.position + count == end.position {
+                break
+            }
+
+            (chunk, offset) = i.nextLeaf()!
+        }
+
+        assert(s.count == 1)
+        return s[s.startIndex]
+    }
+
+    func readLine() -> String? {
+        guard var (chunk, offset) = read() else {
+            return nil
+        }
+
+        var end = self
+        if end.next(using: .newlines) == nil {
+            end = Rope.Index(endOf: root!)
+        }
+
+        var s = ""
+        s.reserveCapacity(end.position - position)
+
+        var i = self
+        while true {
+            let count = min(chunk.count - offset, end.position - i.position)
+
+            let endOffset = offset + count
+            assert(endOffset <= chunk.count)
+
+            let cstart = chunk.string.utf8Index(at: offset)
+            let cend = chunk.string.utf8Index(at: endOffset)
+
+            s += chunk.string[cstart..<cend]
+
+            if i.position + count == end.position {
+                break
+            }
+
+            (chunk, offset) = i.nextLeaf()!
+        }
+
+        return s
+    }
+}
+
+
+
+
 // MARK: - Collection conformances
+
 
 // If I don't specify these conformances separately, I get errors like this:
 //
@@ -311,177 +819,8 @@ extension Rope {
 }
 
 
-// MARK: - Builder additions
-
-extension Rope.Builder {
-    mutating func push(string: some Sequence<Character>, breaker: inout Rope.GraphemeBreaker) {
-        var string = String(string)
-        string.makeContiguousUTF8()
-
-        var i = string.startIndex
-
-        while i < string.endIndex {
-            let n = string.utf8.distance(from: i, to: string.endIndex)
-
-            let end: String.Index
-            if n <= Chunk.maxSize {
-                end = string.endIndex
-            } else {
-                end = boundaryForBulkInsert(string[i...])
-            }
-
-            push(leaf: Chunk(string[i..<end], breaker: &breaker))
-            i = end
-        }
-    }
-}
-
-
-fileprivate func boundaryForBulkInsert(_ s: Substring) -> String.Index {
-    boundary(for: s, startingAt: Chunk.minSize)
-}
-
-fileprivate func boundaryForMerge(_ s: Substring) -> String.Index {
-    // for the smallest chunk that needs splitting (n = maxSize + 1 = 1024):
-    // minSplit = max(511, 1024 - 1023) = max(511, 1) = 511
-    // maxSplit = min(1023, 1024 - 511) = min(1023, 513) = 513
-    boundary(for: s, startingAt: max(Chunk.minSize, s.utf8.count - Chunk.maxSize))
-}
-
-fileprivate func boundary(for s: Substring, startingAt minSplit: Int) -> String.Index {
-    let maxSplit = min(Chunk.maxSize, s.utf8.count - Chunk.minSize)
-
-    let nl = UInt8(ascii: "\n")
-    let lineBoundary = s.withExistingUTF8 { buf in
-        buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
-    }
-
-    let offset = lineBoundary ?? maxSplit
-    let i = s.utf8Index(at: offset)
-    return s.unicodeScalars._index(roundingDown: i)
-}
-
-// MARK: - Index additions
-
-extension Rope.Index {
-    func readUTF8() -> UTF8.CodeUnit? {
-        guard let (chunk, offset) = read() else {
-            return nil
-        }
-
-        if offset == chunk.count {
-            // We're at the end of the rope
-            return nil
-        }
-
-        return chunk.string.utf8[chunk.string.utf8Index(at: offset)]
-    }
-
-    func readScalar() -> Unicode.Scalar? {
-        guard let (chunk, offset) = read() else {
-            return nil
-        }
-
-        if offset == chunk.count {
-            // We're at the end of the rope
-            return nil
-        }
-
-        let i = chunk.string.utf8Index(at: offset)
-        assert(chunk.isValidUnicodeScalarIndex(i))
-
-        return chunk.string.unicodeScalars[i]
-    }
-
-    func readChar() -> Character? {
-        guard var (chunk, offset) = read() else {
-            return nil
-        }
-
-        if offset == chunk.count {
-            // We're at the end of the rope
-            return nil
-        }
-
-        let ci = chunk.string.utf8Index(at: offset)
-
-        assert(ci >= chunk.firstBreak && ci <= chunk.lastBreak)
-        assert(chunk.isValidCharacterIndex(ci))
-
-        if ci < chunk.lastBreak {
-            // the common case, the full character is in this chunk
-            return chunk.string[ci]
-        }
-
-        var end = self
-        if end.next(using: .characters) == nil {
-            end = Rope.Index(endOf: root!)
-        }
-
-        var s = ""
-        s.reserveCapacity(end.position - position)
-
-        var i = self
-        while true {
-            let count = min(chunk.count - offset, end.position - i.position)
-
-            let endOffset = offset + count
-            assert(endOffset <= chunk.count)
-
-            let cstart = chunk.string.utf8Index(at: offset)
-            let cend = chunk.string.utf8Index(at: endOffset)
-
-            s += chunk.string[cstart..<cend]
-
-            if i.position + count == end.position {
-                break
-            }
-
-            (chunk, offset) = i.nextLeaf()!
-        }
-
-        assert(s.count == 1)
-        return s[s.startIndex]
-    }
-
-    func readLine() -> String? {
-        guard var (chunk, offset) = read() else {
-            return nil
-        }
-
-        var end = self
-        if end.next(using: .newlines) == nil {
-            end = Rope.Index(endOf: root!)
-        }
-
-        var s = ""
-        s.reserveCapacity(end.position - position)
-
-        var i = self
-        while true {
-            let count = min(chunk.count - offset, end.position - i.position)
-
-            let endOffset = offset + count
-            assert(endOffset <= chunk.count)
-
-            let cstart = chunk.string.utf8Index(at: offset)
-            let cend = chunk.string.utf8Index(at: endOffset)
-
-            s += chunk.string[cstart..<cend]
-
-            if i.position + count == end.position {
-                break
-            }
-
-            (chunk, offset) = i.nextLeaf()!
-        }
-
-        return s
-    }
-}
-
-
 // MARK: - Grapheme breaking
+
 
 extension Rope {
     mutating func resyncBreaks(old: inout GraphemeBreaker, new: inout GraphemeBreaker) {
@@ -627,334 +966,6 @@ extension BTree {
     }
 }
 
-
-// MARK: - Metrics
-
-// It would be better if these metrics were nested inside Rope instead
-// of BTree, but that causes problems with LLDB – I get errors like
-// "error: cannot find 'metric' in scope" in response to 'p metric'.
-//
-// Ditto for using `some BTreeMetric<Summary>` instead of introducing
-// a generic type and constrainting it to BTreeMetric<Summary>.
-extension BTree {
-    // The base metric, which measures UTF-8 code units.
-    struct UTF8Metric: BTreeMetric {
-        func measure(summary: RopeSummary, count: Int) -> Int {
-            count
-        }
-        
-        func convertToBaseUnits(_ measuredUnits: Int, in leaf: Chunk) -> Int {
-            measuredUnits
-        }
-        
-        func convertFromBaseUnits(_ baseUnits: Int, in leaf: Chunk) -> Int {
-            baseUnits
-        }
-        
-        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-            true
-        }
-        
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset > 0)
-            return offset - 1
-        }
-        
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset < chunk.count)
-            return offset + 1
-        }
-        
-        var canFragment: Bool {
-            false
-        }
-        
-        var type: BTreeMetricType {
-            .atomic
-        }
-    }
-}
-
-extension BTreeMetric<RopeSummary> where Self == Rope.UTF8Metric {
-    static var utf8: Rope.UTF8Metric { Rope.UTF8Metric() }
-}
-
-// Rope doesn't have a true UTF-16 view like String does. Instead the
-// UTF16Metric is mostly useful for counting UTF-16 code units. Its
-// prev and next operate the same as UnicodeScalarMetric. Next() and prev()
-// will "skip" trailing surrogates, jumping to the next Unicode scalar
-// boundary. "Skip" is in quotes because there are not actually any leading
-// or trailing surrogates in Rope's storage. It's just Unicode scalars that
-// are encoded as UTF-8.
-extension BTree {
-    struct UTF16Metric: BTreeMetric {
-        func measure(summary: RopeSummary, count: Int) -> Int {
-            summary.utf16
-        }
-
-        func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
-            let startIndex = chunk.string.startIndex
-
-            let i = chunk.string.utf16Index(at: measuredUnits)
-            return chunk.string.utf8.distance(from: startIndex, to: i)
-        }
-
-        func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
-            let startIndex = chunk.string.startIndex
-            let i = chunk.string.utf8Index(at: baseUnits)
-
-            return chunk.string.utf16.distance(from: startIndex, to: i)
-        }
-
-        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-            let i = chunk.string.utf8Index(at: offset)
-            return chunk.isValidUnicodeScalarIndex(i)
-        }
-
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset > 0)
-
-            let startIndex = chunk.string.startIndex
-            let current = chunk.string.utf8Index(at: offset)
-
-            var target = chunk.string.unicodeScalars._index(roundingDown: current)
-            if target == current {
-                target = chunk.string.unicodeScalars.index(before: target)
-            }
-            return chunk.string.utf8.distance(from: startIndex, to: target)
-        }
-
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset < chunk.count)
-
-            let startIndex = chunk.string.startIndex
-            let current = chunk.string.utf8Index(at: offset)
-
-            let target = chunk.string.unicodeScalars.index(after: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
-        }
-
-        var canFragment: Bool {
-            false
-        }
-        
-        var type: BTreeMetricType {
-            .atomic
-        }
-    }
-}
-
-extension BTreeMetric<RopeSummary> where Self == Rope.UTF16Metric {
-    static var utf16: Rope.UTF16Metric { Rope.UTF16Metric() }
-}
-
-extension BTree {
-    struct UnicodeScalarMetric: BTreeMetric {
-        func measure(summary: RopeSummary, count: Int) -> Int {
-            summary.scalars
-        }
-        
-        func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
-            let startIndex = chunk.string.startIndex
-            
-            let i = chunk.string.unicodeScalarIndex(at: measuredUnits)
-            return chunk.string.utf8.distance(from: startIndex, to: i)
-        }
-        
-        func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
-            let startIndex = chunk.string.startIndex
-            let i = chunk.string.utf8Index(at: baseUnits)
-
-            return chunk.string.unicodeScalars.distance(from: startIndex, to: i)
-        }
-        
-        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-            let i = chunk.string.utf8Index(at: offset)
-            return chunk.isValidUnicodeScalarIndex(i)
-        }
-        
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset > 0)
-            
-            let startIndex = chunk.string.startIndex
-            let current = chunk.string.utf8Index(at: offset)
-
-            var target = chunk.string.unicodeScalars._index(roundingDown: current)
-            if target == current {
-                target = chunk.string.unicodeScalars.index(before: target)
-            }
-            return chunk.string.utf8.distance(from: startIndex, to: target)
-        }
-        
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset < chunk.count)
-
-            let startIndex = chunk.string.startIndex
-            let current = chunk.string.utf8Index(at: offset)
-
-            let target = chunk.string.unicodeScalars.index(after: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
-        }
-        
-        var canFragment: Bool {
-            false
-        }
-        
-        var type: BTreeMetricType {
-            .atomic
-        }
-    }
-}
-
-extension BTreeMetric<RopeSummary> where Self == Rope.UnicodeScalarMetric {
-    static var unicodeScalars: Rope.UnicodeScalarMetric { Rope.UnicodeScalarMetric() }
-}
-
-extension BTree {
-    struct CharacterMetric: BTreeMetric {
-        func measure(summary: RopeSummary, count: Int) -> Int {
-            summary.chars
-        }
-        
-        func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
-            assert(measuredUnits <= chunk.characters.count)
-
-            let startIndex = chunk.characters.startIndex
-            let i = chunk.characters.index(startIndex, offsetBy: measuredUnits)
-            
-            assert(chunk.isValidCharacterIndex(i))
-
-            return chunk.prefixCount + chunk.string.utf8.distance(from: startIndex, to: i)
-        }
-        
-        func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
-            let startIndex = chunk.characters.startIndex
-            let i = chunk.string.utf8Index(at: baseUnits)
-            
-            return chunk.characters.distance(from: startIndex, to: i)
-        }
-        
-        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-            if offset < chunk.prefixCount || offset > chunk.count - chunk.suffixCount {
-                return false
-            }
-            
-            let i = chunk.string.utf8Index(at: offset)
-            return chunk.isValidCharacterIndex(i)
-        }
-        
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset > 0)
-
-            let startIndex = chunk.string.startIndex
-            let current = chunk.string.utf8Index(at: offset)
-
-            if current <= chunk.firstBreak {
-                return nil
-            }
-
-            var target = chunk.string._index(roundingDown: current)
-            if target == current {
-                target = chunk.string.index(before: target)
-            }
-
-            return chunk.string.utf8.distance(from: startIndex, to: target)
-        }
-        
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset < chunk.count)
-
-            let startIndex = chunk.string.startIndex
-            let current = chunk.string.utf8Index(at: offset)
-
-            if current >= chunk.lastBreak {
-                return nil
-            }
-            
-            let target = chunk.string.index(after: current)
-            return chunk.string.utf8.distance(from: startIndex, to: target)
-        }
-        
-        var canFragment: Bool {
-            true
-        }
-        
-        var type: BTreeMetricType {
-            .atomic
-        }
-    }
-}
-
-extension BTreeMetric<RopeSummary> where Self == Rope.CharacterMetric {
-    static var characters: Rope.CharacterMetric { Rope.CharacterMetric() }
-}
-
-extension BTree {
-    struct NewlinesMetric: BTreeMetric {
-        func measure(summary: RopeSummary, count: Int) -> Int {
-            summary.newlines
-        }
-        
-        func convertToBaseUnits(_ measuredUnits: Int, in chunk: Chunk) -> Int {
-            let nl = UInt8(ascii: "\n")
-            
-            var offset = 0
-            var count = 0
-            chunk.string.withExistingUTF8 { buf in
-                while count < measuredUnits {
-                    offset = buf[offset...].firstIndex(of: nl)! + 1
-                    count += 1
-                }
-            }
-            
-            return offset
-        }
-        
-        func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
-            return chunk.string.withExistingUTF8 { buf in
-                countNewlines(in: buf[..<baseUnits])
-            }
-        }
-        
-        func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-            assert(offset > 0)
-            
-            return chunk.string.withExistingUTF8 { buf in
-                buf[offset - 1] == UInt8(ascii: "\n")
-            }
-        }
-        
-        func prev(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset > 0)
-            
-            let nl = UInt8(ascii: "\n")
-            return chunk.string.withExistingUTF8 { buf in
-                buf[..<(offset - 1)].lastIndex(of: nl).map { $0 + 1 }
-            }
-        }
-        
-        func next(_ offset: Int, in chunk: Chunk) -> Int? {
-            assert(offset < chunk.count)
-
-            let nl = UInt8(ascii: "\n")
-            return chunk.string.withExistingUTF8 { buf in
-                buf[offset...].firstIndex(of: nl).map { $0 + 1 }
-            }
-        }
-        
-        var canFragment: Bool {
-            true
-        }
-        
-        var type: BTreeMetricType {
-            .trailing
-        }
-    }
-}
-
-extension BTreeMetric<RopeSummary> where Self == Rope.NewlinesMetric {
-    static var newlines: Rope.NewlinesMetric { Rope.NewlinesMetric() }
-}
 
 
 // MARK: - Views
@@ -1229,6 +1240,7 @@ extension NSString {
 
 
 // MARK: - Helpers
+
 
 fileprivate func countNewlines(in buf: Slice<UnsafeBufferPointer<UInt8>>) -> Int {
     let nl = UInt8(ascii: "\n")
