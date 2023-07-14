@@ -254,12 +254,12 @@ extension Rope.LinesView: BidirectionalCollection {
         var index: Rope.Index
 
         mutating func next() -> String? {
-            guard let scalar = index.readLine() else {
+            guard let line = index.readLine() else {
                 return nil
             }
-            
+
             index.next(using: .newlines)
-            return scalar
+            return line
         }
     }
 
