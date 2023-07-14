@@ -57,9 +57,10 @@ struct BTree<Summary> where Summary: BTreeSummary {
     }
 }
 
+// These methods must be called with valid indices.
 extension BTree where Summary: BTreeDefaultMetric {
     func index<M>(before i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
-        i.validate(for: root)
+        i.assertValid(for: root)
 
         var i = i
         let offset = i.prev(using: metric)
@@ -70,7 +71,7 @@ extension BTree where Summary: BTreeDefaultMetric {
     }
 
     func index<M>(after i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
-        i.validate(for: root)
+        i.assertValid(for: root)
 
         var i = i
         let offset = i.next(using: metric)
@@ -91,7 +92,7 @@ extension BTree where Summary: BTreeDefaultMetric {
     //
     // If we want to handle it here, we could make this function return Index? as well.
     func index<M>(_ i: Index, offsetBy distance: Int, using metric: M) -> Index where M: BTreeMetric<Summary> {
-        i.validate(for: root)
+        i.assertValid(for: root)
 
         var i = i
         let m = root.count(metric, upThrough: i.position)
@@ -103,8 +104,8 @@ extension BTree where Summary: BTreeDefaultMetric {
     }
 
     func index<M>(_ i: Index, offsetBy distance: Int, limitedBy limit: Index, using metric: M) -> Index? where M: BTreeMetric<Summary> {
-        i.validate(for: root)
-        limit.validate(for: root)
+        i.assertValid(for: root)
+        limit.assertValid(for: root)
 
         let l = limit.position - i.position
         if distance > 0 ? l >= 0 && l < distance : l <= 0 && distance < l {
@@ -127,14 +128,6 @@ extension BTree where Summary: BTreeDefaultMetric {
         }
 
         return index(before: i, using: metric)
-    }
-
-    func index(roundingDownToNearestLeaf i: Index) -> Index {
-        i.validate(for: root)
-
-        var i = i
-        _ = i.floorLeaf()! // a valid index will always have a leaf
-        return i
     }
 
     func index<M>(at offset: Int, using metric: M) -> Index where M: BTreeMetric<Summary> {

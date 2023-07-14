@@ -438,6 +438,12 @@ extension BTree {
             precondition(self.leaf != nil)
         }
 
+        func assertValid(for root: Node) {
+            assert(self.root === root)
+            assert(self.mutationCount == root.mutationCount)
+            assert(self.leaf != nil)
+        }
+
         func validate(_ other: Index) {
             precondition(root === other.root && root != nil)
             precondition(mutationCount == root!.mutationCount)

@@ -213,21 +213,26 @@ extension Rope: Collection {
     }
 
     func index(after i: Index) -> Index {
-        index(after: i, using: .characters)
+        i.validate(for: root)
+        return index(after: i, using: .characters)
     }
 
     func index(_ i: Index, offsetBy distance: Int) -> Index {
-        index(i, offsetBy: distance, using: .characters)
+        i.validate(for: root)
+        return index(i, offsetBy: distance, using: .characters)
     }
 
     func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
-        index(i, offsetBy: distance, limitedBy: limit, using: .characters)
+        i.validate(for: root)
+        limit.validate(for: root)
+        return index(i, offsetBy: distance, limitedBy: limit, using: .characters)
     }
 }
 
 extension Rope: BidirectionalCollection {
     func index(before i: Index) -> Index {
-        index(before: i, using: .characters)
+        i.validate(for: root)
+        return index(before: i, using: .characters)
     }
 }
 
