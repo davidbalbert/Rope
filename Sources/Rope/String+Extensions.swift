@@ -32,19 +32,3 @@ extension StringProtocol {
         }!
     }
 }
-
-extension String {
-    init(_ rope: Rope) {
-        self.init()
-        self.reserveCapacity(rope.utf8.count)
-        for chunk in rope.leaves {
-            append(chunk.string)
-        }
-    }
-}
-
-extension NSString {
-    convenience init(_ rope: Rope) {
-        self.init(string: String(rope))
-    }
-}
