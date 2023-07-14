@@ -118,12 +118,19 @@ extension BTree {
             case .atomic:
                 if position == 0 || position == root!.count {
                     return true
-                } else if offsetInLeaf == 0 {
-                    // We have to look to the previous leaf to
-                    // see if we have a boundary.
-                    let (prev, _) = peekPrevLeaf()!
-                    return metric.isBoundary(prev.count, in: prev)
                 } else {
+                    // Atomic metrics don't make the distinction between leading and
+                    // trailing boundaries. When offsetInLeaf == 0, we could either
+                    // choose to look at the start of the current leaf, or do what
+                    // we do in with trailing metrics and look at the end of the previous
+                    // leaf. Here, we do the former.
+                    //
+                    // I'm not sure if there's a more principled way of deciding which
+                    // of these to do, but CharacterMetric works best if we look at the
+                    // current leaf – looking at the current leaf's prefixCount is the
+                    // only way to tell whether a character starts at the beginning of
+                    // the leaf – and there are no other atomic metrics that care one
+                    // way or another.
                     return metric.isBoundary(offsetInLeaf, in: leaf)
                 }
             }

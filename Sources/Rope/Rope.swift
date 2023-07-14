@@ -625,12 +625,6 @@ extension BTree {
         }
         
         func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-            // The only time offset will equal chunk.count is
-            // when chunk is the last offset of the rope.
-            if offset == chunk.count {
-                return true
-            }
-            
             if offset < chunk.prefixCount || offset > chunk.count - chunk.suffixCount {
                 return false
             }
