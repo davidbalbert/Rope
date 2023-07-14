@@ -58,13 +58,14 @@ struct BTree<Summary> where Summary: BTreeSummary {
 }
 
 extension BTree where Summary: BTreeDefaultMetric {
-    // TODO: right now, index(before:using:) and index(after:using:) can return invalid
-    // indices. Perhaps we want them to return nil indices instead.
     func index<M>(before i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
         i.validate(for: root)
 
         var i = i
-        i.prev(using: metric)
+        let offset = i.prev(using: metric)
+        if offset == nil {
+            fatalError("Index out of bounds")
+        }
         return i
     }
 
@@ -72,7 +73,10 @@ extension BTree where Summary: BTreeDefaultMetric {
         i.validate(for: root)
 
         var i = i
-        i.next(using: metric)
+        let offset = i.next(using: metric)
+        if offset == nil {
+            fatalError("Index out of bounds")
+        }
         return i
     }
 
