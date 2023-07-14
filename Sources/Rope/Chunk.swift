@@ -202,7 +202,6 @@ extension Chunk {
 
         let offset = lineBoundary ?? maxSplit
         let i = s.utf8Index(at: offset)
-        // TODO: this is SPI. Hopefully it gets exposed soon.
         return s.unicodeScalars._index(roundingDown: i)
     }
 

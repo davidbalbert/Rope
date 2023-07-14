@@ -216,7 +216,8 @@ extension BTree {
                 return 0
             }
 
-            // TODO: figure out m1_fudge in xi-editor
+            // TODO: figure out m1_fudge in xi-editor. I believe it's just an optimization, so this code is probably fine.
+            // If you implement it, remember that the <= comparison becomes <.
             var m1 = m1
             var m2 = 0
             var node = self
