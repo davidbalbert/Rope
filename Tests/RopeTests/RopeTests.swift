@@ -506,7 +506,7 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(200_001, r.root.summary.newlines) // 1 newline
     }
 
-    func testSummarizeSMP() {
+    func testSummarizeOutsideBMP() {
         var r = Rope("🙂🙂")
 
         XCTAssertEqual(8, r.root.count)
@@ -528,9 +528,13 @@ final class RopeTests: XCTestCase {
         // Inserting a character in the middle of a code point rounds down
         i = r.utf8.index(at: 6)
         r.insert(contentsOf: "👍", at: i)
+        XCTAssertEqual("🙂👍🙁🙂", String(r))
 
-
-
+        XCTAssertEqual(16, r.root.count)
+        XCTAssertEqual(8, r.root.summary.utf16)
+        XCTAssertEqual(4, r.root.summary.scalars)
+        XCTAssertEqual(4, r.root.summary.chars)
+        XCTAssertEqual(0, r.root.summary.newlines)
     }
 //
 //    func testSummarizeOutsideBMPSplit() {

@@ -630,8 +630,12 @@ extension BTree {
             if current <= chunk.firstBreak {
                 return nil
             }
-            
-            let target = chunk.string.index(before: current)
+
+            var target = chunk.string._index(roundingDown: current)
+            if target == current {
+                target = chunk.string.index(before: target)
+            }
+
             return chunk.string.utf8.distance(from: startIndex, to: target)
         }
         
