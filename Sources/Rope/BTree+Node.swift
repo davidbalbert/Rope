@@ -1,6 +1,6 @@
 //
-//  Node.swift
-//  
+//  BTree+Node.swift
+//
 //
 //  Created by David Albert on 6/12/23.
 //
@@ -72,7 +72,7 @@ extension BTree {
             self.height = height
             self.count = count
             self._children = children
-            self._leaf = Leaf()
+            self._leaf = Leaf.zero
             self.summary = summary
         }
 
@@ -90,7 +90,7 @@ extension BTree {
         }
 
         convenience init() {
-            self.init(Leaf())
+            self.init(Leaf.zero)
         }
 
         convenience init<C>(_ children: C) where C: Sequence, C.Element == Node {
@@ -130,7 +130,7 @@ extension BTree {
         }
 
         // Mutating. Self must be unique at this point.
-        func concatinate(_ other: Node) -> Node {
+        func concatenate(_ other: Node) -> Node {
             let h1 = height
             let h2 = other.height
 
@@ -141,7 +141,7 @@ extension BTree {
 
                 // Concatinate mutates self, but self is already guaranteed to be
                 // unique at this point.
-                let new = concatinate(other.children[0])
+                let new = concatenate(other.children[0])
                 if new.height == h2 - 1 {
                     return Node(children: [new], mergedWith: other.children.dropFirst())
                 } else {
@@ -169,7 +169,7 @@ extension BTree {
                     children[children.count-1] = children[children.count-1].clone()
                 }
 
-                let new = children[children.count - 1].concatinate(other)
+                let new = children[children.count - 1].concatenate(other)
                 if new.height == h1 - 1 {
                     return Node(children: children.dropLast(), mergedWith: [new])
                 } else {
@@ -188,7 +188,7 @@ extension BTree {
 
             mutationCount &+= 1
 
-            let newLeaf = leaf.push(possiblySplitting: other.leaf)
+            let newLeaf = leaf.pushMaybeSplitting(other: other.leaf)
             count = leaf.count
             summary = Summary(summarizing: leaf)
 
@@ -204,5 +204,53 @@ extension BTree {
             // to just create a new Node instance.
             return Node(cloning: self)
         }
+
+        func measure<M>(using metric: M) -> Int where M: BTreeMetric<Summary> {
+            metric.measure(summary: summary, count: count)
+        }
+
+        func convert<M1, M2>(_ m1: Int, from: M1, to: M2) -> Int where M1: BTreeMetric<Summary>, M2: BTreeMetric<Summary> {
+            assert(m1 <= measure(using: from))
+
+            if m1 == 0 {
+                return 0
+            }
+
+            // TODO: figure out m1_fudge in xi-editor. I believe it's just an optimization, so this code is probably fine.
+            // If you implement it, remember that the <= comparison becomes <.
+            var m1 = m1
+            var m2 = 0
+            var node = self
+            while !node.isLeaf {
+                let parent = node
+                for child in node.children {
+                    let childM1 = child.measure(using: from)
+                    if m1 <= childM1 {
+                        node = child
+                        break
+                    }
+                    m1 -= childM1
+                    m2 += child.measure(using: to)
+                }
+                assert(node !== parent)
+            }
+
+            let base = from.convertToBaseUnits(m1, in: node.leaf)
+            return m2 + to.convertFromBaseUnits(base, in: node.leaf)
+        }
+
+        func convert<M>(_ m1: Int, from: M, to: M) -> Int where M: BTreeMetric<Summary> {
+            return m1
+        }
+    }
+}
+
+extension BTree.Node where Summary: BTreeDefaultMetric {
+    func count<M>(_ metric: M, upThrough offset: Int) -> Int where M: BTreeMetric<Summary> {
+        convert(offset, from: Summary.defaultMetric, to: metric)
+    }
+
+    func countBaseUnits<M>(of measured: Int, measuredIn metric: M) -> Int where M: BTreeMetric<Summary> {
+        convert(measured, from: metric, to: Summary.defaultMetric)
     }
 }

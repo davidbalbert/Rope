@@ -1,6 +1,6 @@
 //
-//  Builder.swift
-//  
+//  BTree+Builder.swift
+//
 //
 //  Created by David Albert on 6/12/23.
 //
@@ -27,7 +27,7 @@ extension BTree {
                         popped = popped.clone()
                     }
 
-                    n = popped.concatinate(n)
+                    n = popped.concatenate(n)
                     isUnique = true
                 } else if var (lastNode, _) = stack.last?.last, lastNode.height == n.height {
                     if !lastNode.isUndersized && !n.isUndersized {
@@ -43,7 +43,7 @@ extension BTree {
                             stack[stack.count - 1][stack[stack.count - 1].count - 1] = (lastNode, true)
                         }
 
-                        let newLeaf = lastNode.leaf.push(possiblySplitting: n.leaf)
+                        let newLeaf = lastNode.leaf.pushMaybeSplitting(other: n.leaf)
 
                         lastNode.mutationCount &+= 1
                         lastNode.count = lastNode.leaf.count
@@ -85,6 +85,7 @@ extension BTree {
             }
 
             if range == 0..<node.count {
+                // TODO: figure out and explain why we need to unconditionally clone here
                 var n = node.clone()
                 push(&n)
                 return
@@ -113,10 +114,7 @@ extension BTree {
         }
 
         mutating func push(leaf: Leaf, slicedBy range: Range<Int>) {
-            let start = leaf.index(leaf.startIndex, offsetBy: range.lowerBound)
-            let end = leaf.index(start, offsetBy: range.upperBound - range.lowerBound)
-
-            push(leaf: leaf[start..<end])
+            push(leaf: leaf[range])
         }
 
         mutating func pop() -> PartialTree {
@@ -126,7 +124,7 @@ extension BTree {
             } else {
                 // We are able to throw away isUnique for all our children, because
                 // inside Builder, we only care about the uniqueness of the nodes
-                // directly on teh stack.
+                // directly on the stack.
                 //
                 // In general, we do still care if some nodes are unique – specifically
                 // when concatinating two nodes, the rightmost branch of the left tree
@@ -147,16 +145,10 @@ extension BTree {
                         popped = popped.clone()
                     }
 
-                    n = popped.concatinate(n)
+                    n = popped.concatenate(n)
                 }
 
                 return n
-            }
-        }
-
-        mutating func push<S>(contentsOf elements: S) where S: Sequence, S.Element == Element {
-            for leaf in Leaf.makeLeavesFrom(contentsOf: elements) {
-                push(leaf: leaf)
             }
         }
     }

@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "Rope",
+    platforms: [
+        .macOS("13.3")
+    ],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
@@ -20,13 +23,9 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "Rope",
-            dependencies: [],
-            swiftSettings: [.unsafeFlags(["-enable-testing"])]),
+            dependencies: []),
         .testTarget(
             name: "RopeTests",
             dependencies: ["Rope"]),
-        .testTarget(
-            name: "RopePerformanceTests",
-            dependencies: ["Rope"])
     ]
 )

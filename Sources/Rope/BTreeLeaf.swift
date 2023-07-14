@@ -7,18 +7,14 @@
 
 import Foundation
 
-protocol BTreeLeaf: BidirectionalCollection where SubSequence == Self {
-    associatedtype Leaves: Sequence<Self>
-    static func makeLeavesFrom(contentsOf elements: some Sequence<Element>) -> Leaves
+protocol BTreeLeaf {
+    static var zero: Self { get }
 
-    // Already in BidirectionCollection, but important enough to point
-    // out here. Must be in base units.
+    // Measured in base units
     var count: Int { get }
-
-    // From RangeReplacableCollection
-    init()
-    init<S>(_ elements: S) where S : Sequence, Self.Element == S.Element
-    
     var isUndersized: Bool { get }
-    mutating func push(possiblySplitting other: Self) -> Self?
+    mutating func pushMaybeSplitting(other: Self) -> Self?
+
+    // Specified in base units. Should be O(1).
+    subscript(bounds: Range<Int>) -> Self { get }
 }
