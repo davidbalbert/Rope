@@ -61,7 +61,8 @@ extension Rope.Index {
             return nil
         }
 
-        if offset >= chunk.count {
+        if offset == chunk.count {
+            // We're at the end of the rope
             return nil
         }
 
@@ -73,7 +74,8 @@ extension Rope.Index {
             return nil
         }
 
-        if offset >= chunk.count {
+        if offset == chunk.count {
+            // We're at the end of the rope
             return nil
         }
 
@@ -88,7 +90,8 @@ extension Rope.Index {
             return nil
         }
 
-        if offset >= chunk.count {
+        if offset == chunk.count {
+            // We're at the end of the rope
             return nil
         }
 
