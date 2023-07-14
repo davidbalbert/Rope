@@ -612,7 +612,6 @@ extension BTree {
             assert(chunk.isValidCharacterIndex(i))
 
             return chunk.prefixCount + chunk.string.utf8.distance(from: startIndex, to: i)
-            
         }
         
         func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
