@@ -191,7 +191,7 @@ extension Rope.UnicodeScalarView: BidirectionalCollection {
 
     subscript(position: Rope.Index) -> Unicode.Scalar {
         position.validate(for: base.root)
-        return index(roundingDown: position).readScalar()!
+        return base.index(roundingDown: position, using: .unicodeScalars).readScalar()!
     }
 
     func index(before i: Rope.Index) -> Rope.Index {
@@ -268,7 +268,7 @@ extension Rope.LinesView: BidirectionalCollection {
 
     subscript(position: Rope.Index) -> String {
         position.validate(for: base.root)
-        return index(roundingDown: position).readLine()!
+        return base.index(roundingDown: position, using: .newlines).readLine()!
     }
 
     func index(before i: Rope.Index) -> Rope.Index {

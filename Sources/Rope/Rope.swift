@@ -196,15 +196,15 @@ extension Rope: Collection {
     
     subscript(position: Index) -> Character {
         position.validate(for: root)
-        return index(roundingDown: position).readChar()!
+        return index(roundingDown: position, using: .characters).readChar()!
     }
 
     subscript(bounds: Range<Index>) -> Rope {
         bounds.lowerBound.validate(for: root)
         bounds.upperBound.validate(for: root)
 
-        let start = index(roundingDown: bounds.lowerBound)
-        let end = index(roundingDown: bounds.upperBound)
+        let start = index(roundingDown: bounds.lowerBound, using: .characters)
+        let end = index(roundingDown: bounds.upperBound, using: .characters)
 
         var sliced = Rope(self, slicedBy: Range(start..<end))
 
@@ -244,7 +244,7 @@ extension Rope: RangeReplaceableCollection {
         subrange.lowerBound.validate(for: root)
         subrange.upperBound.validate(for: root)
 
-        let subrange = index(roundingDown: subrange.lowerBound)..<index(roundingDown: subrange.upperBound)
+        let subrange = index(roundingDown: subrange.lowerBound, using: .characters)..<index(roundingDown: subrange.upperBound, using: .characters)
 
         var old = GraphemeBreaker(for: self, upTo: subrange.upperBound, withKnownNextScalar: subrange.upperBound.position == root.count ? nil : unicodeScalars[subrange.upperBound])
         var new = GraphemeBreaker(for: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
@@ -277,7 +277,8 @@ extension Rope {
     }
 
     func index(roundingDown i: Index) -> Index {
-        index(roundingDown: i, using: .characters)
+        i.validate(for: root)
+        return index(roundingDown: i, using: .characters)
     }
 }
 
