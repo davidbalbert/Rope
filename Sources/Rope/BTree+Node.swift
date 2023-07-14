@@ -238,10 +238,6 @@ extension BTree {
             let base = from.convertToBaseUnits(m1, in: node.leaf)
             return m2 + to.convertFromBaseUnits(base, in: node.leaf)
         }
-
-        func convert<M>(_ m1: Int, from: M, to: M) -> Int where M: BTreeMetric<Summary> {
-            return m1
-        }
     }
 }
 
