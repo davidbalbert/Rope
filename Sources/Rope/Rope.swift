@@ -39,10 +39,13 @@ struct RopeSummary: BTreeSummary {
     }
 
     init(summarizing chunk: Chunk) {
-        self.utf16 = chunk.countUTF16()
-        self.scalars = chunk.countScalars()
-        self.chars = chunk.countChars()
-        self.newlines = chunk.countNewlines()
+        self.utf16 = chunk.string.utf16.count
+        self.scalars = chunk.string.unicodeScalars.count
+        self.chars = chunk.characters.count
+
+        self.newlines = chunk.string.withExistingUTF8 { buf in
+            countNewlines(in: buf[...])
+        }
     }
 }
 
@@ -107,7 +110,7 @@ struct Chunk: BTreeLeaf {
         self.breaker = b
 
         self.string = s
-        (self.prefixCount, self.suffixCount) = Chunk.calculateBreaks(in: s, using: &b)
+        (self.prefixCount, self.suffixCount) = calculateBreaks(in: s, using: &b)
     }
 
     mutating func pushMaybeSplitting(other: Chunk) -> Chunk? {
@@ -115,15 +118,15 @@ struct Chunk: BTreeLeaf {
         var b = breaker
 
         if string.utf8.count <= Chunk.maxSize {
-            (prefixCount, suffixCount) = Chunk.calculateBreaks(in: string, using: &b)
+            (prefixCount, suffixCount) = calculateBreaks(in: string, using: &b)
             return nil
         } else {
-            let i = Chunk.boundaryForMerge(string[...])
+            let i = boundaryForMerge(string[...])
 
             let rest = String(string.unicodeScalars[i...])
             string = String(string.unicodeScalars[..<i])
 
-            (prefixCount, suffixCount) = Chunk.calculateBreaks(in: string, using: &b)
+            (prefixCount, suffixCount) = calculateBreaks(in: string, using: &b)
             return Chunk(rest[...], breaker: &b)
         }
     }
@@ -141,27 +144,6 @@ struct Chunk: BTreeLeaf {
         return Chunk(string[start..<end], breaker: &b)
     }
 
-    func countChars() -> Int {
-        characters.count
-    }
-
-    func countUTF16() -> Int {
-        string.utf16.count
-    }
-
-    func countScalars() -> Int {
-        string.unicodeScalars.count
-    }
-
-    func countNewlines() -> Int {
-        var count = 0
-        string.withExistingUTF8 { buf in
-            count = Chunk.countNewlines(in: buf[...])
-        }
-
-        return count
-    }
-
     func isValidUnicodeScalarIndex(_ i: String.Index) -> Bool {
         i.samePosition(in: string.unicodeScalars) != nil
     }
@@ -171,68 +153,28 @@ struct Chunk: BTreeLeaf {
     }
 }
 
-// helpers
-extension Chunk {
-    static func countNewlines(in buf: Slice<UnsafeBufferPointer<UInt8>>) -> Int {
-        let nl = UInt8(ascii: "\n")
-        var count = 0
+fileprivate func calculateBreaks(in string: String, using breaker: inout Rope.GraphemeBreaker) -> (prefixCount: Int, suffixCount: Int) {
+    var s = string[...]
 
-        for b in buf {
-            if b == nl {
-                count += 1
-            }
-        }
-
-        return count
+    guard let r = breaker.firstBreak(in: s) else {
+        // uncommon, no character boundaries
+        let c = s.utf8.count
+        return (c, c)
     }
 
-    static func boundaryForBulkInsert(_ s: Substring) -> String.Index {
-        chunkBoundary(for: s, startingAt: Chunk.minSize)
-    }
+    let first = r.lowerBound
+    s = s[r.upperBound...]
 
-    static func boundaryForMerge(_ s: Substring) -> String.Index {
-        // for the smallest chunk that needs splitting (n = maxSize + 1 = 1024):
-        // minSplit = max(511, 1024 - 1023) = max(511, 1) = 511
-        // maxSplit = min(1023, 1024 - 511) = min(1023, 513) = 513
-        chunkBoundary(for: s, startingAt: max(Chunk.minSize, s.utf8.count - Chunk.maxSize))
-    }
-
-    static func chunkBoundary(for s: Substring, startingAt minSplit: Int) -> String.Index {
-        let maxSplit = min(Chunk.maxSize, s.utf8.count - Chunk.minSize)
-
-        let nl = UInt8(ascii: "\n")
-        let lineBoundary = s.withExistingUTF8 { buf in
-            buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
-        }
-
-        let offset = lineBoundary ?? maxSplit
-        let i = s.utf8Index(at: offset)
-        return s.unicodeScalars._index(roundingDown: i)
-    }
-
-    static func calculateBreaks(in string: String, using breaker: inout Rope.GraphemeBreaker) -> (prefixCount: Int, suffixCount: Int) {
-        var s = string[...]
-
-        guard let r = breaker.firstBreak(in: s) else {
-            // uncommon, no character boundaries
-            let c = s.utf8.count
-            return (c, c)
-        }
-
-        let first = r.lowerBound
+    var last = r.lowerBound
+    while let r = breaker.firstBreak(in: s) {
+        last = r.lowerBound
         s = s[r.upperBound...]
-
-        var last = r.lowerBound
-        while let r = breaker.firstBreak(in: s) {
-            last = r.lowerBound
-            s = s[r.upperBound...]
-        }
-
-        let prefixCount = string.utf8.distance(from: string.startIndex, to: first)
-        let suffixCount = string.utf8.distance(from: last, to: string.endIndex)
-
-        return (prefixCount, suffixCount)
     }
+
+    let prefixCount = string.utf8.distance(from: string.startIndex, to: first)
+    let suffixCount = string.utf8.distance(from: last, to: string.endIndex)
+
+    return (prefixCount, suffixCount)
 }
 
 
@@ -386,7 +328,7 @@ extension Rope.Builder {
             if n <= Chunk.maxSize {
                 end = string.endIndex
             } else {
-                end = Chunk.boundaryForBulkInsert(string[i...])
+                end = boundaryForBulkInsert(string[i...])
             }
 
             push(leaf: Chunk(string[i..<end], breaker: &breaker))
@@ -395,6 +337,30 @@ extension Rope.Builder {
     }
 }
 
+
+fileprivate func boundaryForBulkInsert(_ s: Substring) -> String.Index {
+    boundary(for: s, startingAt: Chunk.minSize)
+}
+
+fileprivate func boundaryForMerge(_ s: Substring) -> String.Index {
+    // for the smallest chunk that needs splitting (n = maxSize + 1 = 1024):
+    // minSplit = max(511, 1024 - 1023) = max(511, 1) = 511
+    // maxSplit = min(1023, 1024 - 511) = min(1023, 513) = 513
+    boundary(for: s, startingAt: max(Chunk.minSize, s.utf8.count - Chunk.maxSize))
+}
+
+fileprivate func boundary(for s: Substring, startingAt minSplit: Int) -> String.Index {
+    let maxSplit = min(Chunk.maxSize, s.utf8.count - Chunk.minSize)
+
+    let nl = UInt8(ascii: "\n")
+    let lineBoundary = s.withExistingUTF8 { buf in
+        buf[(minSplit-1)..<maxSplit].lastIndex(of: nl)
+    }
+
+    let offset = lineBoundary ?? maxSplit
+    let i = s.utf8Index(at: offset)
+    return s.unicodeScalars._index(roundingDown: i)
+}
 
 // MARK: - Index additions
 
@@ -947,7 +913,7 @@ extension BTree {
         
         func convertFromBaseUnits(_ baseUnits: Int, in chunk: Chunk) -> Int {
             return chunk.string.withExistingUTF8 { buf in
-                Chunk.countNewlines(in: buf[..<baseUnits])
+                countNewlines(in: buf[..<baseUnits])
             }
         }
         
@@ -1264,6 +1230,19 @@ extension NSString {
 
 
 // MARK: - Helpers
+
+fileprivate func countNewlines(in buf: Slice<UnsafeBufferPointer<UInt8>>) -> Int {
+    let nl = UInt8(ascii: "\n")
+    var count = 0
+
+    for b in buf {
+        if b == nl {
+            count += 1
+        }
+    }
+
+    return count
+}
 
 fileprivate extension StringProtocol {
     func index(at offset: Int) -> Index {
