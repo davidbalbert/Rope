@@ -81,10 +81,6 @@ extension BTree {
             self.init(offsetBy: root.count, in: root)
         }
 
-        var isAtEnd: Bool {
-            leaf != nil && root?.count == position
-        }
-
         func isBoundary<M>(in metric: M) -> Bool where M: BTreeMetric<Summary> {
             assert(root != nil)
 
@@ -141,7 +137,7 @@ extension BTree {
             if let leaf {
                 let leafEnd = offsetOfLeaf + leaf.count
 
-                if position >= offsetOfLeaf && (position < leafEnd || root!.count == position && position == leafEnd) {
+                if position >= offsetOfLeaf && (position < leafEnd || position == leafEnd && position == root!.count) {
                     // We're still in the same leaf. No need to descend.
                     return
                 }
