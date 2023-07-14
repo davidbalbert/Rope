@@ -81,16 +81,6 @@ extension BTree where Summary: BTreeDefaultMetric {
         return i
     }
 
-    // TODO: index(_:offsetBy:using:) and index(_:offsetBy:limitedBy:using:) both panic if
-    // m+distance > root.measure(using: metric). There are certain situations where we're probably
-    // going to want to return the end of the rope if we're asking for root.measure(using: metric) + 1.
-    //
-    // Specifically, if we're using the .newlines metric, the number of lines we have is one more than
-    // the number of newline characters. For this reason, Xi allows you to call offset_of_line with
-    // root.measure(using: .newlines) + 1. It's possible we can handle this in the lines view instead
-    // of in this method.
-    //
-    // If we want to handle it here, we could make this function return Index? as well.
     func index<M>(_ i: Index, offsetBy distance: Int, using metric: M) -> Index where M: BTreeMetric<Summary> {
         i.assertValid(for: root)
 
