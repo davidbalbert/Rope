@@ -102,14 +102,7 @@ extension BTree where Summary: BTreeDefaultMetric {
             return nil
         }
 
-        // This is the body of index(_:offsetBy:in:) skipping the validation
-        var i = i
-        let m = root.count(metric, upThrough: i.position)
-        precondition(m+distance >= 0 && m+distance <= root.measure(using: metric), "Index out of bounds")
-        let pos = root.countBaseUnits(of: m + distance, measuredIn: metric)
-        i.set(pos)
-
-        return i
+        return index(i, offsetBy: distance, using: metric)
     }
 
     func index<M>(roundingDown i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
