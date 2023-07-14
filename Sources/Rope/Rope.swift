@@ -177,7 +177,10 @@ extension Rope: Sequence {
         var index: Index
 
         mutating func next() -> Character? {
-            let c = index.readChar()
+            guard let c = index.readChar() else {
+                return nil
+            }
+            
             index.next(using: .characters)
             return c
         }

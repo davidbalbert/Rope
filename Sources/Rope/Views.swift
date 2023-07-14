@@ -94,7 +94,10 @@ extension Rope.UTF8View: BidirectionalCollection {
         var index: Rope.Index
 
         mutating func next() -> UTF8.CodeUnit? {
-            let b = index.readUTF8()
+            guard let b = index.readUTF8() else {
+                return nil
+            }
+
             index.next(using: .utf8)
             return b
         }
@@ -171,7 +174,10 @@ extension Rope.UnicodeScalarView: BidirectionalCollection {
         var index: Rope.Index
 
         mutating func next() -> Unicode.Scalar? {
-            let scalar = index.readScalar()
+            guard let scalar = index.readScalar() else {
+                return nil
+            }
+
             index.next(using: .unicodeScalars)
             return scalar
         }
@@ -248,7 +254,10 @@ extension Rope.LinesView: BidirectionalCollection {
         var index: Rope.Index
 
         mutating func next() -> String? {
-            let scalar = index.readLine()
+            guard let scalar = index.readLine() else {
+                return nil
+            }
+            
             index.next(using: .newlines)
             return scalar
         }
