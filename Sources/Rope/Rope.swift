@@ -244,16 +244,17 @@ extension Rope: RangeReplaceableCollection {
         subrange.lowerBound.validate(for: root)
         subrange.upperBound.validate(for: root)
 
-        let subrange = index(roundingDown: subrange.lowerBound, using: .characters)..<index(roundingDown: subrange.upperBound, using: .characters)
+        let rangeStart = index(roundingDown: subrange.lowerBound, using: .characters)
+        let rangeEnd = index(roundingDown: subrange.upperBound, using: .characters)
 
-        var old = GraphemeBreaker(for: self, upTo: subrange.upperBound, withKnownNextScalar: subrange.upperBound.position == root.count ? nil : unicodeScalars[subrange.upperBound])
-        var new = GraphemeBreaker(for: self, upTo: subrange.lowerBound, withKnownNextScalar: newElements.first?.unicodeScalars.first)
+        var old = GraphemeBreaker(for: self, upTo: rangeEnd, withKnownNextScalar: rangeEnd.position == root.count ? nil : unicodeScalars[rangeEnd])
+        var new = GraphemeBreaker(for: self, upTo: rangeStart, withKnownNextScalar: newElements.first?.unicodeScalars.first)
 
         var b = Builder()
-        b.push(&root, slicedBy: Range(startIndex..<subrange.lowerBound))
+        b.push(&root, slicedBy: Range(startIndex..<rangeStart))
         b.push(string: newElements, breaker: &new)
 
-        var rest = Rope(self, slicedBy: Range(subrange.upperBound..<endIndex))
+        var rest = Rope(self, slicedBy: Range(rangeEnd..<endIndex))
         rest.resyncBreaks(old: &old, new: &new)
         b.push(&rest.root)
 
