@@ -150,7 +150,11 @@ extension BTree {
         mutating func prev<M>(using metric: M) -> Int? where M: BTreeMetric<Summary> {
             assert(root != nil)
 
-            if position == 0 || leaf == nil {
+            if leaf == nil {
+                return nil
+            }
+
+            if position == 0 {
                 invalidate()
                 return nil
             }
@@ -163,7 +167,8 @@ extension BTree {
             // If we didn't find a boundary, go to the previous leaf and
             // try again.
             guard let (leaf, _) = prevLeaf() else {
-                // we were on the first leaf, so we're done.
+                // We were on the first leaf, so we're done.
+                // prevLeaf invalidates if necessary
                 return nil
             }
 
@@ -195,7 +200,11 @@ extension BTree {
         mutating func next<M>(using metric: M) -> Int? where M: BTreeMetric<Summary> {
             assert(root != nil)
 
-            if position == root!.count || leaf == nil {
+            if leaf == nil {
+                return nil
+            }
+
+            if position == root!.count {
                 invalidate()
                 return nil
             }
@@ -207,7 +216,8 @@ extension BTree {
             // There was no boundary in the leaf we started on. Move to the next one.
             if nextLeaf() == nil {
                 // the leaf we started on was the last leaf, and we didn't
-                // find a boundary, so now we're at the end.
+                // find a boundary, so now we're at the end. nextLeaf() will
+                // call invalidate() in this case.
                 return nil
             }
 
