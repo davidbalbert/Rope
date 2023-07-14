@@ -7,6 +7,8 @@
 
 import Foundation
 
+// MARK: - Protocols
+
 protocol BTreeSummary {
     associatedtype Leaf: BTreeLeaf
 
@@ -61,6 +63,8 @@ protocol BTreeMetric<Summary> {
 }
 
 
+// MARK: - Basic operations
+
 struct BTree<Summary> where Summary: BTreeSummary {
     static var minChild: Int { 4 }
     static var maxChild: Int { 8 }
@@ -113,10 +117,8 @@ struct BTree<Summary> where Summary: BTreeSummary {
     }
 }
 
-
+// These methods must be called on already validated indices.
 extension BTree where Summary: BTreeDefaultMetric {
-    // These methods must be called with valid indices.
-
     func index<M>(before i: Index, using metric: M) -> Index where M: BTreeMetric<Summary> {
         i.assertValid(for: root)
 
@@ -179,6 +181,8 @@ extension BTree where Summary: BTreeDefaultMetric {
     }
 }
 
+
+// MARK: - Node
 
 extension BTree {
     final class Node {
@@ -425,6 +429,9 @@ extension BTree.Node where Summary: BTreeDefaultMetric {
 }
 
 
+// MARK: - Builder
+
+
 extension BTree {
     struct Builder {
         typealias PartialTree = (node: Node, isUnique: Bool)
@@ -571,6 +578,9 @@ extension BTree {
         }
     }
 }
+
+
+// MARK: - Index
 
 
 extension BTree {
@@ -1062,6 +1072,9 @@ extension BTree.Index: Comparable {
 }
 
 
+// MARK: - LeavesView
+
+
 extension BTree {
     var leaves: LeavesView {
         LeavesView(base: self)
@@ -1118,6 +1131,9 @@ extension BTree.LeavesView: BidirectionalCollection {
         return i
     }
 }
+
+
+// MARK: - Helpers
 
 
 extension Range<Int> {
