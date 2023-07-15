@@ -397,7 +397,6 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(0, r.root.height)
 
         XCTAssertEqual(0, r.root.leaf.prefixCount)
-        XCTAssertEqual(1, r.root.leaf.suffixCount)
 
         // 'combining accute accent' + "b"*999
         r.append("\u{0301}" + String(repeating: "b", count: 999))
@@ -409,9 +408,7 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(1001, r.root.children[1].count) // "´" takes up two bytes
 
         XCTAssertEqual(0, r.root.children[0].leaf.prefixCount)
-        XCTAssertEqual(1, r.root.children[0].leaf.suffixCount)
         XCTAssertEqual(2, r.root.children[1].leaf.prefixCount)
-        XCTAssertEqual(1, r.root.children[1].leaf.suffixCount)
 
         // the last "a" in children[0] combine with the accent at
         // the beginning of children[1] to form a single character.
@@ -648,12 +645,10 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(0, r1.root.height)
         XCTAssertEqual(1000, r1.root.count)
         XCTAssertEqual(0, r1.root.leaf.prefixCount)
-        XCTAssertEqual(1, r1.root.leaf.suffixCount)
 
         XCTAssertEqual(0, r2.root.height)
         XCTAssertEqual(1001, r2.root.count) // "´" takes up two bytes
         XCTAssertEqual(0, r2.root.leaf.prefixCount)
-        XCTAssertEqual(1, r2.root.leaf.suffixCount)
 
         let r = r1 + r2
 
@@ -666,20 +661,16 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(1001, r.root.children[1].count) // "´" takes up two bytes
 
         XCTAssertEqual(0, r.root.children[0].leaf.prefixCount)
-        XCTAssertEqual(1, r.root.children[0].leaf.suffixCount)
         XCTAssertEqual(2, r.root.children[1].leaf.prefixCount)
-        XCTAssertEqual(1, r.root.children[1].leaf.suffixCount) 
 
         // Make sure r1 and r2 haven't changed
         XCTAssertEqual(0, r1.root.height)
         XCTAssertEqual(1000, r1.root.count)
         XCTAssertEqual(0, r1.root.leaf.prefixCount)
-        XCTAssertEqual(1, r1.root.leaf.suffixCount)
 
         XCTAssertEqual(0, r2.root.height)
         XCTAssertEqual(1001, r2.root.count) // "´" takes up two bytes
         XCTAssertEqual(0, r2.root.leaf.prefixCount)
-        XCTAssertEqual(1, r2.root.leaf.suffixCount)
     }
 
 

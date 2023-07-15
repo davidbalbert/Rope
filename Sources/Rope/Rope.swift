@@ -67,10 +67,9 @@ struct Chunk: BTreeLeaf {
 
     var string: String
     var prefixCount: Int
-    var suffixCount: Int
 
     // a breaker ready to consume the first
-    // scalar in the Chunk. Used for prefix/suffix
+    // scalar in the Chunk. Used for prefix
     // calculation in pushMaybeSplitting(other:)
     var breaker: Rope.GraphemeBreaker
 
@@ -87,7 +86,11 @@ struct Chunk: BTreeLeaf {
     }
 
     var lastBreak: String.Index {
-        string.utf8Index(at: count - suffixCount)
+        if string.isEmpty {
+            return string.startIndex
+        } else {
+            return string.index(before: string.endIndex)
+        }
     }
 
     var characters: Substring {
@@ -97,7 +100,6 @@ struct Chunk: BTreeLeaf {
     init() {
         self.string = ""
         self.prefixCount = 0
-        self.suffixCount = 0
         self.breaker = Rope.GraphemeBreaker()
     }
 
@@ -110,7 +112,7 @@ struct Chunk: BTreeLeaf {
         self.breaker = b
 
         self.string = s
-        (self.prefixCount, self.suffixCount) = calculateBreaks(in: s, using: &b)
+        self.prefixCount = offsetOfFirstCharacter(in: s, using: &b)
     }
 
     mutating func pushMaybeSplitting(other: Chunk) -> Chunk? {
@@ -118,7 +120,7 @@ struct Chunk: BTreeLeaf {
         var b = breaker
 
         if string.utf8.count <= Chunk.maxSize {
-            (prefixCount, suffixCount) = calculateBreaks(in: string, using: &b)
+            prefixCount = offsetOfFirstCharacter(in: string, using: &b)
             return nil
         } else {
             let i = boundaryForMerge(string[...])
@@ -126,7 +128,7 @@ struct Chunk: BTreeLeaf {
             let rest = String(string.unicodeScalars[i...])
             string = String(string.unicodeScalars[..<i])
 
-            (prefixCount, suffixCount) = calculateBreaks(in: string, using: &b)
+            prefixCount = offsetOfFirstCharacter(in: string, using: &b)
             return Chunk(rest[...], breaker: &b)
         }
     }
@@ -153,28 +155,15 @@ struct Chunk: BTreeLeaf {
     }
 }
 
-fileprivate func calculateBreaks(in string: String, using breaker: inout Rope.GraphemeBreaker) -> (prefixCount: Int, suffixCount: Int) {
-    var s = string[...]
-
-    guard let r = breaker.firstBreak(in: s) else {
+fileprivate func offsetOfFirstCharacter(in string: String, using breaker: inout Rope.GraphemeBreaker) -> Int {
+    guard let r = breaker.firstBreak(in: string[...]) else {
         // uncommon, no character boundaries
-        let c = s.utf8.count
-        return (c, c)
+        return string.utf8.count
     }
 
-    let first = r.lowerBound
-    s = s[r.upperBound...]
+    breaker.consume(string[r.upperBound...])
 
-    var last = r.lowerBound
-    while let r = breaker.firstBreak(in: s) {
-        last = r.lowerBound
-        s = s[r.upperBound...]
-    }
-
-    let prefixCount = string.utf8.distance(from: string.startIndex, to: first)
-    let suffixCount = string.utf8.distance(from: last, to: string.endIndex)
-
-    return (prefixCount, suffixCount)
+    return string.utf8.distance(from: string.startIndex, to: r.lowerBound)
 }
 
 
@@ -386,7 +375,9 @@ extension BTree {
         }
 
         func isBoundary(_ offset: Int, in chunk: Chunk) -> Bool {
-            if offset < chunk.prefixCount || offset > chunk.count - chunk.suffixCount {
+            assert(offset < chunk.count)
+
+            if offset < chunk.prefixCount {
                 return false
             }
 
@@ -605,7 +596,6 @@ extension Rope.Index {
 
         let ci = chunk.string.utf8Index(at: offset)
 
-        assert(ci >= chunk.firstBreak && ci <= chunk.lastBreak)
         assert(chunk.isValidCharacterIndex(ci))
 
         if ci < chunk.lastBreak {
@@ -861,7 +851,6 @@ extension Chunk {
     mutating func resyncBreaks(old: inout Rope.GraphemeBreaker, new: inout Rope.GraphemeBreaker) -> Bool {
         var i = string.startIndex
         var first: String.Index?
-        var last: String.Index?
 
         while i < string.unicodeScalars.endIndex {
             let scalar = string.unicodeScalars[i]
@@ -870,7 +859,6 @@ extension Chunk {
 
             if b {
                 first = first ?? i
-                last = i
             }
 
             if a && b {
@@ -884,20 +872,9 @@ extension Chunk {
             string.unicodeScalars.formIndex(after: &i)
         }
 
-        // A sanity check. The first time we find a break we set both first
-        // and last, which means we can't be in a situation where only one
-        // of them is nil.
-        assert((first == nil) == (last == nil))
-
-        if let first, let last {
+        if let first {
             // We found a new first break
             prefixCount = string.utf8.distance(from: string.startIndex, to: first)
-            
-            if i >= lastBreak {
-                // We made it up through the old lastBreak before exiting the loop
-                // which means we found a new last break.
-                suffixCount = string.utf8.distance(from: last, to: string.endIndex)
-            }
         } else if i >= lastBreak {
             // We made it up through lastBreak without finding any breaks
             // and now we're in sync. We know there are no more breaks
@@ -913,11 +890,9 @@ extension Chunk {
             // no breaks in the chunk, so this code is a no-op.
 
             prefixCount = string.utf8.count
-            suffixCount = string.utf8.count
         } else if i >= firstBreak {
             // We made it up through firstBreak without finding any breaks
-            // but we got in sync before the old lastBreak. This means
-            // lastBreak is still valid, but we need to find firstBreak.
+            // but we got in sync before lastBreak. Find a new firstBreak:
 
             let j = string.unicodeScalars.index(after: i)
             var tmp = new
