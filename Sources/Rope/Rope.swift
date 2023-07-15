@@ -112,7 +112,7 @@ struct Chunk: BTreeLeaf {
         self.breaker = b
 
         self.string = s
-        self.prefixCount = offsetOfFirstCharacter(in: s, using: &b)
+        self.prefixCount = consumeAndFindPrefixCount(in: s, using: &b)
     }
 
     mutating func pushMaybeSplitting(other: Chunk) -> Chunk? {
@@ -120,7 +120,7 @@ struct Chunk: BTreeLeaf {
         var b = breaker
 
         if string.utf8.count <= Chunk.maxSize {
-            prefixCount = offsetOfFirstCharacter(in: string, using: &b)
+            prefixCount = consumeAndFindPrefixCount(in: string, using: &b)
             return nil
         } else {
             let i = boundaryForMerge(string[...])
@@ -128,7 +128,7 @@ struct Chunk: BTreeLeaf {
             let rest = String(string.unicodeScalars[i...])
             string = String(string.unicodeScalars[..<i])
 
-            prefixCount = offsetOfFirstCharacter(in: string, using: &b)
+            prefixCount = consumeAndFindPrefixCount(in: string, using: &b)
             return Chunk(rest[...], breaker: &b)
         }
     }
@@ -155,7 +155,7 @@ struct Chunk: BTreeLeaf {
     }
 }
 
-fileprivate func offsetOfFirstCharacter(in string: String, using breaker: inout Rope.GraphemeBreaker) -> Int {
+fileprivate func consumeAndFindPrefixCount(in string: String, using breaker: inout Rope.GraphemeBreaker) -> Int {
     guard let r = breaker.firstBreak(in: string[...]) else {
         // uncommon, no character boundaries
         return string.utf8.count
