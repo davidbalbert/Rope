@@ -795,6 +795,21 @@ extension Rope: RangeReplaceableCollection {
 
 // A few niceties that make Rope more like String.
 extension Rope {
+    static func + (_ left: Rope, _ right: Rope) -> Rope {
+        var l = left
+        var r = right
+
+        var b = Builder()
+        var old = GraphemeBreaker()
+        var new = GraphemeBreaker(for: l, upTo: l.endIndex)
+
+        r.resyncBreaks(old: &old, new: &new)
+
+        b.push(&l.root)
+        b.push(&r.root)
+        return Rope(b.build())
+    }
+
     mutating func append(_ string: String) {
         append(contentsOf: string)
     }
@@ -869,17 +884,55 @@ extension Chunk {
             string.unicodeScalars.formIndex(after: &i)
         }
 
-        guard let first, let last else {
-            // the chunk has no break, we need to continue to the next chunk.
+        // A sanity check. The first time we find a break we set both first
+        // and last, which means we can't be in a situation where only one
+        // of them is nil.
+        assert((first == nil) == (last == nil))
+
+        if let first, let last {
+            // We found a new first break
+            prefixCount = string.utf8.distance(from: string.startIndex, to: first)
+            
+            if i >= lastBreak {
+                // We made it up through the old lastBreak before exiting the loop
+                // which means we found a new last break.
+                suffixCount = string.utf8.distance(from: last, to: string.endIndex)
+            }
+        } else if i >= lastBreak {
+            // We made it up through lastBreak without finding any breaks
+            // and now we're in sync. We know there are no more breaks
+            // ahead of us, which means there are no breaks in the chunk.
+            
+            // N.b. there is a special case where lastBreak < firstBreak –
+            // when there were no breaks in the chunk previously. In that
+            // case lastBreak == startIndex and firstBreak == endIndex.
+
+            // But this code works for that situation too. If there were no
+            // breaks in the chunk previously, and we get in sync anywhere
+            // in the chunk without finding a break, we know there are still
+            // no breaks in the chunk, so this code is a no-op.
+
             prefixCount = string.utf8.count
             suffixCount = string.utf8.count
-            return true
+        } else if i >= firstBreak {
+            // We made it up through firstBreak without finding any breaks
+            // but we got in sync before the old lastBreak. This means
+            // lastBreak is still valid, but we need to find firstBreak.
+
+            let j = string.unicodeScalars.index(after: i)
+            var tmp = new
+            let first = tmp.firstBreak(in: string[j...])!.lowerBound
+            prefixCount = string.utf8.distance(from: string.startIndex, to: first)
+
+            // If this is false, there's a bug in the code, or my assumptions are wrong.
+            assert(firstBreak <= lastBreak)
         }
 
-        prefixCount = string.utf8.distance(from: string.startIndex, to: first)
-        suffixCount = string.utf8.distance(from: string.unicodeScalars.index(after: last), to: string.endIndex)
+        // There's an implicit else clause to the above– we're in sync, and we
+        // didn't even get to the old firstBreak. This means the breaks didn't
+        // change at all.
 
-        // we're done if we stopped iterating before processing the whole chunk
+        // We're done if we synced up before the end of the chunk.
         return i < string.endIndex
     }
 }

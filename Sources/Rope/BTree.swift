@@ -73,18 +73,6 @@ struct BTree<Summary> where Summary: BTreeSummary {
 
     var root: Node
 
-    // TODO: this won't work for grapheme breaks. Write a test
-    // to prove it and then move it into Rope.
-    static func + (_ left: BTree, _ right: BTree) -> BTree {
-        var l = left.root
-        var r = right.root
-
-        var b = Builder()
-        b.push(&l)
-        b.push(&r)
-        return BTree(b.build())
-    }
-
     init(_ root: Node) {
         self.root = root
     }

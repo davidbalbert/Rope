@@ -641,6 +641,47 @@ final class RopeTests: XCTestCase {
         XCTAssertEqual(1, r.lines.count)
     }
 
+    func testConcatinateUpdatesGraphemeBreakState() {
+        let r1 = Rope(String(repeating: "a", count: 1000))
+        let r2 = Rope("\u{0301}" + String(repeating: "b", count: 999))
+
+        XCTAssertEqual(0, r1.root.height)
+        XCTAssertEqual(1000, r1.root.count)
+        XCTAssertEqual(0, r1.root.leaf.prefixCount)
+        XCTAssertEqual(1, r1.root.leaf.suffixCount)
+
+        XCTAssertEqual(0, r2.root.height)
+        XCTAssertEqual(1001, r2.root.count) // "´" takes up two bytes
+        XCTAssertEqual(0, r2.root.leaf.prefixCount)
+        XCTAssertEqual(1, r2.root.leaf.suffixCount)
+
+        let r = r1 + r2
+
+        XCTAssertEqual("a\u{0301}", r[999]) // U+0301 COMBINING ACUTE ACCENT
+        
+        XCTAssertEqual(1, r.root.height)
+        XCTAssertEqual(2, r.root.children.count)
+
+        XCTAssertEqual(1000, r.root.children[0].count)
+        XCTAssertEqual(1001, r.root.children[1].count) // "´" takes up two bytes
+
+        XCTAssertEqual(0, r.root.children[0].leaf.prefixCount)
+        XCTAssertEqual(1, r.root.children[0].leaf.suffixCount)
+        XCTAssertEqual(2, r.root.children[1].leaf.prefixCount)
+        XCTAssertEqual(1, r.root.children[1].leaf.suffixCount) 
+
+        // Make sure r1 and r2 haven't changed
+        XCTAssertEqual(0, r1.root.height)
+        XCTAssertEqual(1000, r1.root.count)
+        XCTAssertEqual(0, r1.root.leaf.prefixCount)
+        XCTAssertEqual(1, r1.root.leaf.suffixCount)
+
+        XCTAssertEqual(0, r2.root.height)
+        XCTAssertEqual(1001, r2.root.count) // "´" takes up two bytes
+        XCTAssertEqual(0, r2.root.leaf.prefixCount)
+        XCTAssertEqual(1, r2.root.leaf.suffixCount)
+    }
+
 
     // Index tests
 
